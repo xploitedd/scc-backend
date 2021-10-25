@@ -1,29 +1,29 @@
 package pt.unl.fct.scc.sccbackend
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
 import org.springframework.boot.runApplication
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.crypto.factory.PasswordEncoderFactories
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
-@EnableWebSecurity
-class SccBackendSecurityConfiguration : WebSecurityConfigurerAdapter() {
+@EnableWebMvc
+class SccBackendConfiguration : WebMvcConfigurer {
 
-	override fun configure(http: HttpSecurity) {
-		http.authorizeRequests { it.anyRequest().permitAll() }
+	@Bean
+	fun getPasswordEncoder(): PasswordEncoder {
+		return PasswordEncoderFactories.createDelegatingPasswordEncoder()
 	}
 
 }
 
-@Configuration
-@EnableWebMvc
-class SccBackendConfiguration : WebMvcConfigurer
-
-@SpringBootApplication
+@SpringBootApplication(exclude = [MongoAutoConfiguration::class, MongoReactiveAutoConfiguration::class])
 class SccBackendApplication
 
 fun main(args: Array<String>) {
