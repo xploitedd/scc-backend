@@ -1,7 +1,7 @@
 package pt.unl.fct.scc.sccbackend
 
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
 import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
 import org.springframework.boot.runApplication
@@ -9,8 +9,10 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
+import pt.unl.fct.scc.sccbackend.common.argumentResolvers.UserResolver
 
 @Configuration
 @EnableWebMvc
@@ -19,6 +21,13 @@ class SccBackendConfiguration : WebMvcConfigurer {
 	@Bean
 	fun getPasswordEncoder(): PasswordEncoder {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder()
+	}
+
+	@Autowired
+	private lateinit var userResolver: UserResolver
+
+	override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
+		resolvers.add(userResolver)
 	}
 
 }

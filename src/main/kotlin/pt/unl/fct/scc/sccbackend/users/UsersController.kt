@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.bind.annotation.*
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelReducedDto
+import pt.unl.fct.scc.sccbackend.common.ForbiddenException
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.UserInput
 import pt.unl.fct.scc.sccbackend.users.model.hashPassword
@@ -36,9 +37,8 @@ class UsersController(
         user: User,
         @PathVariable("userId") userId: String
     ): ResponseEntity<Any> {
-        // TODO: Exception Handler, with custom exceptions
         if (userId != user.nickname)
-            throw Exception("The user does not have access to this resource")
+            throw ForbiddenException()
 
         repo.deleteUser(user)
         return ResponseEntity.noContent()
@@ -50,9 +50,8 @@ class UsersController(
         user: User,
         @PathVariable userId: String
     ): ResponseEntity<List<ChannelReducedDto>> {
-        // TODO: Exception Handler, with custom exceptions
         if (userId != user.nickname)
-            throw Exception("The user does not have access to this resource")
+            throw ForbiddenException()
 
         val channels = repo.getUserChannels(user)
         return ResponseEntity.ok(channels)
