@@ -2,22 +2,26 @@ package pt.unl.fct.scc.sccbackend.channels.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.litote.kmongo.newId
 
 @Serializable
 data class Channel(
-    @SerialName("_id") val name: String,
+    val name: String,
     val owner: String,
     val private: Boolean,
-    val messages: List<ChannelMessage>
+    val messages: List<ChannelMessage> = emptyList(),
+    @SerialName("_id")
+    val channelId: String = newId<Channel>().toString()
 )
 
 @Serializable
 data class ChannelMessage(
-    @SerialName("_id") val messageId: String,
     val user: String,
     val text: String,
-    val media: String,
-    val replyTo: String
+    val media: String?,
+    val replyTo: String?,
+    @SerialName("_id")
+    val messageId: String = newId<ChannelMessage>().toString(),
 )
 
 @Serializable

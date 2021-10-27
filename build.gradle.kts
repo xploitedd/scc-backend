@@ -33,6 +33,7 @@ dependencies {
 
 	implementation("org.litote.kmongo:kmongo-serialization:4.3.0")
 	implementation("org.litote.kmongo:kmongo-coroutine-serialization:4.3.0")
+	implementation("org.litote.kmongo:kmongo-id-serialization:4.3.0")
 	kapt("org.litote.kmongo:kmongo-annotation-processor:4.3.0")
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
-import java.lang.Exception
 import javax.servlet.http.HttpServletRequest
 
 @RestControllerAdvice
@@ -22,6 +21,7 @@ class ExceptionsAdvice {
         )
     }
 
+    @ExceptionHandler(value = [Exception::class])
     fun handleServerError(
         req: HttpServletRequest,
         ex: Exception

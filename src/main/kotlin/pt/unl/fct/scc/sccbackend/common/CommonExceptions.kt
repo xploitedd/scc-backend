@@ -1,7 +1,6 @@
 package pt.unl.fct.scc.sccbackend.common
 
 import org.springframework.http.HttpStatus
-import java.lang.RuntimeException
 
 sealed class HttpException(
     message: String,
@@ -11,3 +10,5 @@ sealed class HttpException(
 sealed class BadRequestException(message: String) : HttpException(message, HttpStatus.BAD_REQUEST)
 class UnauthorizedException : HttpException("Invalid credentials", HttpStatus.UNAUTHORIZED)
 class ForbiddenException : HttpException("You do not have access to this resource", HttpStatus.FORBIDDEN)
+class ConflictException(conflict: String) : HttpException(conflict, HttpStatus.CONFLICT)
+class NotFoundException : HttpException("The specified resource wasn't found", HttpStatus.NOT_FOUND)

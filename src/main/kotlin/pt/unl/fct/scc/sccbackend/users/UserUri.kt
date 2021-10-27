@@ -5,9 +5,9 @@ import org.springframework.web.util.UriTemplate
 object UserUri {
 
     const val USERS = "/users"
-    const val USER = "$USERS/{userId}"
+    const val USER = "$USERS/{username}"
     const val USER_CHANNELS = "$USER/channels"
 
-    fun forUser(userId: String) = UriTemplate(USER).expand(userId)
+    fun forUser(username: String) = UriTemplate(USER).expand(username)
 
 }
