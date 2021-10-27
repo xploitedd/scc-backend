@@ -1,4 +1,4 @@
-package pt.unl.fct.scc.sccbackend.common.argumentResolvers
+package pt.unl.fct.scc.sccbackend.common.pagination
 
 import org.springframework.core.MethodParameter
 import org.springframework.web.bind.support.WebDataBinderFactory

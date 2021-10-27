@@ -12,7 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
-import pt.unl.fct.scc.sccbackend.common.argumentResolvers.UserResolver
+import pt.unl.fct.scc.sccbackend.common.accessControl.UserResolver
 
 @Configuration
 @EnableWebMvc
