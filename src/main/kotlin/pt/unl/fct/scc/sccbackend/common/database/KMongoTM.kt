@@ -1,5 +1,7 @@
 package pt.unl.fct.scc.sccbackend.common.database
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.litote.kmongo.coroutine.CoroutineClient
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.commitTransactionAndAwait
@@ -26,7 +28,7 @@ class KMongoTM {
             .coroutine
     }
 
-    val database: CoroutineDatabase by lazy {
+    private val database: CoroutineDatabase by lazy {
         kMongo.getDatabase(databaseName)
     }
 
@@ -34,13 +36,21 @@ class KMongoTM {
         registerModule(IdKotlinXSerializationModule)
     }
 
-    suspend fun <T> useTransaction(transaction: suspend (CoroutineDatabase) -> T): T {
-        return kMongo.startSession().use {
-            it.startTransaction()
-            val res = transaction(database)
-            it.commitTransactionAndAwait()
+    suspend fun <T> use(operation: suspend (CoroutineDatabase) -> T): T {
+        return withContext(Dispatchers.IO) {
+            operation(database)
+        }
+    }
 
-            res
+    suspend fun <T> useTransaction(transaction: suspend (CoroutineDatabase) -> T): T {
+        return withContext(Dispatchers.IO) {
+            kMongo.startSession().use {
+                it.startTransaction()
+                val res = transaction(database)
+                it.commitTransactionAndAwait()
+
+                res
+            }
         }
     }
 

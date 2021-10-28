@@ -6,7 +6,8 @@ object UserUri {
 
     const val USERS = "/users"
     const val USER = "$USERS/{username}"
-    const val USER_CHANNELS = "$USER/channels"
+    const val USER_ME = "$USERS/me"
+    const val USER_CHANNELS = "$USER_ME/channels"
 
     fun forUser(username: String) = UriTemplate(USER).expand(username)
 

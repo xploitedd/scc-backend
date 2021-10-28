@@ -8,9 +8,9 @@ import pt.unl.fct.scc.sccbackend.users.model.User
 @Repository
 class AccessControlRepoImpl(val tm: KMongoTM) : AccessControlRepo {
 
-    override suspend fun getUserByUsername(username: String): User? {
-        val col = tm.database.getCollection<User>()
-        return col.findOne(User::nickname eq username)
+    override suspend fun getUserByUsername(username: String) = tm.use { db ->
+        val col = db.getCollection<User>()
+        col.findOne(User::nickname eq username)
     }
 
 }

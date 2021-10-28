@@ -5,7 +5,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.bind.annotation.*
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelReducedDto
-import pt.unl.fct.scc.sccbackend.common.ForbiddenException
 import pt.unl.fct.scc.sccbackend.users.model.*
 import pt.unl.fct.scc.sccbackend.users.repo.UserRepository
 
@@ -32,29 +31,21 @@ class UsersController(
         return ResponseEntity.ok(user.toPublicReducedDto())
     }
 
-    @PatchMapping(UserUri.USER)
+    @PatchMapping(UserUri.USER_ME)
     suspend fun updateUser(
         user: User,
-        @PathVariable username: String,
         @RequestBody userInput: UserUpdateInput
     ): ResponseEntity<Any> {
-        if (username != user.nickname)
-            throw ForbiddenException()
-
         val updatedUser = repo.updateUser(userInput.toUser(user, passwordEncoder))
         return ResponseEntity.noContent()
             .header(HttpHeaders.CONTENT_LOCATION, UserUri.forUser(updatedUser.nickname).toString())
             .build()
     }
 
-    @DeleteMapping(UserUri.USER)
+    @DeleteMapping(UserUri.USER_ME)
     suspend fun deleteUser(
-        user: User,
-        @PathVariable username: String
+        user: User
     ): ResponseEntity<Any> {
-        if (username != user.nickname)
-            throw ForbiddenException()
-
         repo.deleteUser(user)
         return ResponseEntity.noContent()
             .build()
@@ -62,12 +53,8 @@ class UsersController(
 
     @GetMapping(UserUri.USER_CHANNELS)
     suspend fun getUserChannels(
-        user: User,
-        @PathVariable username: String
+        user: User
     ): ResponseEntity<List<ChannelReducedDto>> {
-        if (username != user.nickname)
-            throw ForbiddenException()
-
         val channels = repo.getUserChannels(user)
         return ResponseEntity.ok(channels)
     }
