@@ -19,6 +19,11 @@ data class ChannelUpdateInput(
 )
 
 @Serializable
+data class ChannelNewMemberInput(
+    val userId: String
+)
+
+@Serializable
 data class Channel(
     val name: String,
     val owner: String,
