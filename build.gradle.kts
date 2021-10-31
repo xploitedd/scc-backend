@@ -30,6 +30,11 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 	implementation("io.projectreactor:reactor-core")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.0")
+
+	implementation("com.azure:azure-storage-blob:12.13.0")
+
+	implementation("io.lettuce:lettuce-core:6.1.5.RELEASE")
 
 	implementation("org.litote.kmongo:kmongo-serialization:4.3.0")
 	implementation("org.litote.kmongo:kmongo-coroutine-serialization:4.3.0")

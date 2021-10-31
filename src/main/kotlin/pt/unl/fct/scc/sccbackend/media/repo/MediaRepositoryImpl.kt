@@ -2,36 +2,33 @@ package pt.unl.fct.scc.sccbackend.media.repo
 
 import org.litote.kmongo.eq
 import org.springframework.stereotype.Repository
-import pt.unl.fct.scc.sccbackend.common.UnauthorizedException
+import pt.unl.fct.scc.sccbackend.common.NotFoundException
 import pt.unl.fct.scc.sccbackend.common.database.KMongoTM
+import pt.unl.fct.scc.sccbackend.common.storage.BlobInfo
+import pt.unl.fct.scc.sccbackend.common.storage.BlobStorage
 import pt.unl.fct.scc.sccbackend.media.model.Media
 
 @Repository
-abstract class MediaRepositoryImpl(val tm: KMongoTM) : MediaRepository {
+class MediaRepositoryImpl(
+    val tm: KMongoTM,
+    val bs: BlobStorage
+) : MediaRepository {
 
-
-    /** **/
-    override suspend fun uploadMedia(media: Media) = tm.useTransaction { db ->
+    override suspend fun createMedia(blobInfo: BlobInfo) = tm.use { db ->
         val col = db.getCollection<Media>()
-        col.insertOne(media)
-        media
+        val newMedia = Media(blobInfo.contentType)
+
+        bs.upload(newMedia.blobName, blobInfo)
+        col.insertOne(newMedia)
+        newMedia
     }
 
-    /** **/
-    override suspend fun downloadMedia(blobName: String) = tm.use { db ->
+    override suspend fun getMedia(blobName: String): BlobInfo = tm.use { db ->
         val col = db.getCollection<Media>()
-        val data = col.findOne(Media::blobName eq blobName)
-            ?: throw UnauthorizedException()
+        val media = col.findOne(Media::blobName eq blobName)
+            ?: throw NotFoundException()
 
-        (data.content).toByteArray()
-    }
-
-    /** **/
-    override suspend fun deleteMedia(blobName: String) = tm.use { db ->
-        val col = db.getCollection<Media>()
-        col.deleteOne(Media::blobName eq blobName)
-
-        Unit
+        bs.download(media.blobName)
     }
 
 }

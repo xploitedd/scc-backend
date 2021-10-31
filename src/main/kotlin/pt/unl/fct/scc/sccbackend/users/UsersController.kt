@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.bind.annotation.*
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelReducedDto
+import pt.unl.fct.scc.sccbackend.channels.model.toReducedDto
+import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.*
 import pt.unl.fct.scc.sccbackend.users.repo.UserRepository
 
@@ -53,9 +55,12 @@ class UsersController(
 
     @GetMapping(UserUri.USER_CHANNELS)
     suspend fun getUserChannels(
-        user: User
+        user: User,
+        pagination: Pagination
     ): ResponseEntity<List<ChannelReducedDto>> {
-        val channels = repo.getUserChannels(user)
+        val channels = repo.getUserChannels(user, pagination)
+            .map { it.toReducedDto() }
+
         return ResponseEntity.ok(channels)
     }
 

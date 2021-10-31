@@ -1,6 +1,8 @@
 package pt.unl.fct.scc.sccbackend.users.repo
 
+import pt.unl.fct.scc.sccbackend.channels.model.Channel
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelReducedDto
+import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.User
 
 interface UserRepository {
@@ -13,6 +15,6 @@ interface UserRepository {
 
     suspend fun deleteUser(user: User)
 
-    suspend fun getUserChannels(user: User): List<ChannelReducedDto>
+    suspend fun getUserChannels(user: User, pagination: Pagination): Set<Channel>
 
 }

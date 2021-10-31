@@ -1,14 +1,12 @@
 package pt.unl.fct.scc.sccbackend.media.repo
 
-
+import pt.unl.fct.scc.sccbackend.common.storage.BlobInfo
 import pt.unl.fct.scc.sccbackend.media.model.Media
 
 interface MediaRepository {
 
-    suspend fun uploadMedia(media: Media) : Media
+    suspend fun createMedia(blobInfo: BlobInfo): Media
 
-    suspend fun downloadMedia(blobName: String) : ByteArray
-
-    suspend fun deleteMedia(blobName: String)
+    suspend fun getMedia(blobName: String): BlobInfo
 
 }

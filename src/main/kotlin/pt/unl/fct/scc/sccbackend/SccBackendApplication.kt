@@ -13,6 +13,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import pt.unl.fct.scc.sccbackend.common.accessControl.UserResolver
+import pt.unl.fct.scc.sccbackend.common.pagination.PaginationResolver
 
 @Configuration
 @EnableWebMvc
@@ -26,8 +27,12 @@ class SccBackendConfiguration : WebMvcConfigurer {
 	@Autowired
 	private lateinit var userResolver: UserResolver
 
+	@Autowired
+	private lateinit var paginationResolver: PaginationResolver
+
 	override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
 		resolvers.add(userResolver)
+		resolvers.add(paginationResolver)
 	}
 
 }

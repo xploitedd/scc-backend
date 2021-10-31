@@ -10,19 +10,22 @@ import pt.unl.fct.scc.sccbackend.channels.model.ChannelNewMemberInput
 import pt.unl.fct.scc.sccbackend.common.BadRequestException
 import pt.unl.fct.scc.sccbackend.common.NotFoundException
 import pt.unl.fct.scc.sccbackend.common.database.KMongoTM
+import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.UserChannel
 
 @Repository
 class ChannelRepositoryImpl(val tm: KMongoTM) : ChannelRepository {
 
-    override suspend fun getChannels(user: User?) = tm.use { db ->
+    override suspend fun getChannels(user: User?, pagination: Pagination) = tm.use { db ->
         val col = db.getCollection<Channel>()
         val channels = col.find(or(
             Channel::private eq false, Channel::owner eq user?.userId
         ))
 
-        channels.toList()
+        channels.skip(pagination.offset)
+            .limit(pagination.limit)
+            .toList()
     }
 
     override suspend fun createChannel(channel: Channel) = tm.use { db ->
@@ -64,32 +67,46 @@ class ChannelRepositoryImpl(val tm: KMongoTM) : ChannelRepository {
         res != null
     }
 
-    override suspend fun getChannelMembers(channel: Channel) = tm.useTransaction { db ->
+    override suspend fun getChannelMembers(channel: Channel, pagination: Pagination) = tm.useTransaction { db ->
         val userChannelCol = db.getCollection<UserChannel>()
         val userCol = db.getCollection<User>()
 
         userChannelCol.find(UserChannel::channel eq channel.channelId)
+            .skip(pagination.offset)
+            .limit(pagination.limit)
             .toList()
             .mapNotNull { userCol.findOne(User::userId eq it.user) }
+            .toSet()
     }
 
-    override suspend fun addChannelMember(channel: Channel, input: ChannelNewMemberInput) = tm.useTransaction { db ->
-        val userCol = db.getCollection<User>()
-        val user = userCol.findOne(User::userId eq input.userId)
-            ?: throw BadRequestException("The specified User Id is invalid")
+    override suspend fun addChannelMember(channel: Channel, userId: String) = tm.useTransaction { db ->
+        val user = findUser(userId)
+        if (isUserInChannel(channel, user))
+            throw BadRequestException("The specified user is already subscribed to the channel")
 
-        subscribeToChannel(channel, user)
-    }
-
-    override suspend fun subscribeToChannel(channel: Channel, user: User) = tm.use { db ->
         val userChannelCol = db.getCollection<UserChannel>()
-        userChannelCol.insertOne(UserChannel(
-            channel.channelId,
-            user.userId
+        userChannelCol.insertOne(UserChannel(channel.channelId, user.userId))
+        Unit
+    }
+
+    override suspend fun removeChannelMember(channel: Channel, userId: String) = tm.useTransaction { db ->
+        val user = findUser(userId)
+        if (!isUserInChannel(channel, user))
+            throw BadRequestException("The specified user is not subscribed to the channel")
+
+        val userChannelCol = db.getCollection<UserChannel>()
+        userChannelCol.deleteOne(and(
+            UserChannel::channel eq channel.channelId,
+            UserChannel::user eq userId
         ))
 
         Unit
     }
 
+    private suspend fun findUser(userId: String) = tm.use { db ->
+        val userCol = db.getCollection<User>()
+        userCol.findOne(User::userId eq userId)
+            ?: throw BadRequestException("The specified User Id is invalid")
+    }
 
 }

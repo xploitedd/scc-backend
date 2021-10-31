@@ -1,14 +1,21 @@
 package pt.unl.fct.scc.sccbackend.common
 
 import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.servlet.NoHandlerFoundException
 import javax.servlet.http.HttpServletRequest
 
 @RestControllerAdvice
 class ExceptionsAdvice {
+
+    companion object {
+        private val log = LoggerFactory.getLogger(ExceptionsAdvice::class.java)
+    }
 
     @ExceptionHandler(value = [HttpException::class])
     fun handleHttpException(
@@ -21,11 +28,25 @@ class ExceptionsAdvice {
         )
     }
 
+    @ExceptionHandler(value = [NoHandlerFoundException::class])
+    fun handleNoHandlerFound(
+        req: HttpServletRequest,
+        ex: NoHandlerFoundException
+    ): ResponseEntity<HttpError> {
+        val status = HttpStatus.NOT_FOUND
+        return buildHttpError(
+            status.reasonPhrase,
+            status
+        )
+    }
+
     @ExceptionHandler(value = [Exception::class])
     fun handleServerError(
         req: HttpServletRequest,
         ex: Exception
     ): ResponseEntity<HttpError> {
+        log.error("A fatal exception has occurred", ex)
+
         return buildHttpError(
             "A fatal server error has occurred",
             HttpStatus.INTERNAL_SERVER_ERROR
@@ -43,5 +64,6 @@ data class HttpError(
 private fun buildHttpError(message: String, status: HttpStatus): ResponseEntity<HttpError> {
     val body = HttpError(message, status.value())
     return ResponseEntity.status(status)
+        .contentType(MediaType.APPLICATION_JSON)
         .body(body)
 }

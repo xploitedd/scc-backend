@@ -8,6 +8,7 @@ import pt.unl.fct.scc.sccbackend.channels.repo.ChannelRepository
 import pt.unl.fct.scc.sccbackend.common.BadRequestException
 import pt.unl.fct.scc.sccbackend.common.ForbiddenException
 import pt.unl.fct.scc.sccbackend.common.NotFoundException
+import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.PublicUserReducedDto
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.toPublicReducedDto
@@ -17,9 +18,10 @@ class ChannelsController(val repo: ChannelRepository) {
 
     @GetMapping(ChannelUri.CHANNELS)
     suspend fun getChannels(
-        user: User?
+        user: User?,
+        pagination: Pagination
     ): ResponseEntity<List<ChannelReducedDto>> {
-        val channels = repo.getChannels(user)
+        val channels = repo.getChannels(user, pagination)
             .map { it.toReducedDto() }
 
         return ResponseEntity.ok(channels)
@@ -31,7 +33,7 @@ class ChannelsController(val repo: ChannelRepository) {
         @RequestBody channelInput: ChannelCreateInput
     ): ResponseEntity<Any> {
         val channel = repo.createChannel(channelInput.toChannel(user))
-        repo.subscribeToChannel(channel, user)
+        repo.addChannelMember(channel, user.userId)
 
         return ResponseEntity.created(ChannelUri.forChannel(channel.channelId))
             .build()
@@ -78,12 +80,13 @@ class ChannelsController(val repo: ChannelRepository) {
     @GetMapping(ChannelUri.CHANNEL_MEMBERS)
     suspend fun getChannelMembers(
         user: User?,
-        @PathVariable channelId: String
+        @PathVariable channelId: String,
+        pagination: Pagination
     ): ResponseEntity<List<PublicUserReducedDto>> {
         val channel = repo.getChannel(channelId)
         checkChannelReadAccess(user, channel)
 
-        val members = repo.getChannelMembers(channel)
+        val members = repo.getChannelMembers(channel, pagination)
             .map { it.toPublicReducedDto() }
 
         return ResponseEntity.ok(members)
@@ -98,12 +101,12 @@ class ChannelsController(val repo: ChannelRepository) {
         val channel = repo.getChannel(channelId)
         if (channel.private || memberInput != null) {
             checkChannelWriteAccess(user, channel)
-            repo.addChannelMember(
-                channel,
-                memberInput ?: throw BadRequestException("The user id parameter should be specified")
-            )
+            val userId = memberInput?.userId
+                ?: throw BadRequestException("The user id parameter should be specified")
+
+            repo.addChannelMember(channel, userId)
         } else {
-            repo.subscribeToChannel(channel, user)
+            repo.addChannelMember(channel, user.userId)
         }
 
         return ResponseEntity.noContent().build()
