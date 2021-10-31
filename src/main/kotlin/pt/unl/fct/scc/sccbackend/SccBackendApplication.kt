@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfigurati
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.converter.HttpMessageConverter
+import org.springframework.http.converter.json.KotlinSerializationJsonHttpMessageConverter
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
@@ -18,6 +20,10 @@ import pt.unl.fct.scc.sccbackend.common.pagination.PaginationResolver
 @Configuration
 @EnableWebMvc
 class SccBackendConfiguration : WebMvcConfigurer {
+
+	override fun extendMessageConverters(converters: MutableList<HttpMessageConverter<*>>) {
+		converters.add(0, KotlinSerializationJsonHttpMessageConverter())
+	}
 
 	@Bean
 	fun getPasswordEncoder(): PasswordEncoder {

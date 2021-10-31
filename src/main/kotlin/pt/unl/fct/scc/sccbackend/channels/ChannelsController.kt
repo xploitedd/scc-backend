@@ -96,17 +96,37 @@ class ChannelsController(val repo: ChannelRepository) {
     suspend fun addChannelMember(
         user: User,
         @PathVariable channelId: String,
-        @RequestBody memberInput: ChannelNewMemberInput?
+        @RequestBody memberInput: ChannelMemberInput?
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
         if (channel.private || memberInput != null) {
             checkChannelWriteAccess(user, channel)
-            val userId = memberInput?.userId
-                ?: throw BadRequestException("The user id parameter should be specified")
+            val userId = memberInput?.username
+                ?: throw BadRequestException("The username parameter should be specified")
 
             repo.addChannelMember(channel, userId)
         } else {
             repo.addChannelMember(channel, user.userId)
+        }
+
+        return ResponseEntity.noContent().build()
+    }
+
+    @DeleteMapping(ChannelUri.CHANNEL_MEMBERS)
+    suspend fun removeChannelMember(
+        user: User,
+        @PathVariable channelId: String,
+        @RequestBody memberInput: ChannelMemberInput?
+    ): ResponseEntity<Any> {
+        val channel = repo.getChannel(channelId)
+        if (channel.private || memberInput != null) {
+            checkChannelWriteAccess(user, channel)
+            val userId = memberInput?.username
+                ?: throw BadRequestException("The username parameter should be specified")
+
+            repo.removeChannelMember(channel, userId)
+        } else {
+            repo.removeChannelMember(channel, user.userId)
         }
 
         return ResponseEntity.noContent().build()

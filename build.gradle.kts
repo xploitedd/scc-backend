@@ -46,7 +46,7 @@ dependencies {
 
 tasks.withType<KotlinCompile> {
 	kotlinOptions {
-		freeCompilerArgs = listOf("-Xjsr305=strict")
+		freeCompilerArgs = listOf("-Xjsr305=strict", "-Xopt-in=io.lettuce.core.ExperimentalLettuceCoroutinesApi")
 		jvmTarget = "11"
 	}
 }

@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.servlet.NoHandlerFoundException
@@ -37,6 +39,28 @@ class ExceptionsAdvice {
         return buildHttpError(
             status.reasonPhrase,
             status
+        )
+    }
+
+    @ExceptionHandler(value = [HttpMessageNotReadableException::class])
+    fun handleMessageNotReadable(
+        req: HttpServletRequest,
+        ex: HttpMessageNotReadableException
+    ): ResponseEntity<HttpError> {
+        return buildHttpError(
+            "The request is malformed",
+            HttpStatus.BAD_REQUEST
+        )
+    }
+
+    @ExceptionHandler(value = [HttpRequestMethodNotSupportedException::class])
+    fun handleMethodNotSupported(
+        req: HttpServletRequest,
+        ex: HttpRequestMethodNotSupportedException
+    ): ResponseEntity<HttpError> {
+        return buildHttpError(
+            "Method not supported",
+            HttpStatus.METHOD_NOT_ALLOWED
         )
     }
 

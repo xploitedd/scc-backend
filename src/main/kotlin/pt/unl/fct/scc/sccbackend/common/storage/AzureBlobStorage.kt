@@ -7,15 +7,12 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.springframework.stereotype.Service
 import pt.unl.fct.scc.sccbackend.common.NotFoundException
-import pt.unl.fct.scc.sccbackend.common.storage.provider.AzureStorageProvider
 
 @Service
-class AzureBlobStorage(sp: AzureStorageProvider) : BlobStorage {
-
-    private val blobContainerClient: BlobContainerAsyncClient by sp
+class AzureBlobStorage(val containerClient: BlobContainerAsyncClient) : BlobStorage {
 
     override suspend fun upload(blobName: String, info: BlobInfo) {
-        val blob = blobContainerClient.getBlobAsyncClient(blobName)
+        val blob = containerClient.getBlobAsyncClient(blobName)
 
         blob.upload(BinaryData.fromBytes(info.data))
             .awaitSingle()
@@ -28,7 +25,7 @@ class AzureBlobStorage(sp: AzureStorageProvider) : BlobStorage {
     }
 
     override suspend fun download(blobName: String): BlobInfo {
-        val blob = blobContainerClient.getBlobAsyncClient(blobName)
+        val blob = containerClient.getBlobAsyncClient(blobName)
         // TODO: change these exceptions
         if (!blob.exists().awaitSingle())
             throw NotFoundException()
@@ -45,12 +42,12 @@ class AzureBlobStorage(sp: AzureStorageProvider) : BlobStorage {
     }
 
     override suspend fun exists(blobName: String): Boolean {
-        val blob = blobContainerClient.getBlobAsyncClient(blobName)
+        val blob = containerClient.getBlobAsyncClient(blobName)
         return blob.exists().awaitSingle()
     }
 
     override suspend fun delete(blobName: String) {
-        val blob = blobContainerClient.getBlobAsyncClient(blobName)
+        val blob = containerClient.getBlobAsyncClient(blobName)
         if (!blob.exists().awaitSingle())
             throw NotFoundException()
 

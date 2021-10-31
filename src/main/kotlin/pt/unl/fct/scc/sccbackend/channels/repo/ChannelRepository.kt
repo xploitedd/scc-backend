@@ -1,13 +1,12 @@
 package pt.unl.fct.scc.sccbackend.channels.repo
 
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
-import pt.unl.fct.scc.sccbackend.channels.model.ChannelNewMemberInput
 import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.User
 
 interface ChannelRepository {
 
-    suspend fun getChannels(user: User?, pagination: Pagination): List<Channel>
+    suspend fun getChannels(user: User?, pagination: Pagination): Set<Channel>
 
     suspend fun createChannel(channel: Channel): Channel
 
@@ -21,8 +20,8 @@ interface ChannelRepository {
 
     suspend fun getChannelMembers(channel: Channel, pagination: Pagination): Set<User>
 
-    suspend fun addChannelMember(channel: Channel, userId: String)
+    suspend fun addChannelMember(channel: Channel, username: String)
 
-    suspend fun removeChannelMember(channel: Channel, userId: String)
+    suspend fun removeChannelMember(channel: Channel, username: String)
 
 }

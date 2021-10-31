@@ -1,7 +1,6 @@
 package pt.unl.fct.scc.sccbackend.users.repo
 
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
-import pt.unl.fct.scc.sccbackend.channels.model.ChannelReducedDto
 import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.User
 

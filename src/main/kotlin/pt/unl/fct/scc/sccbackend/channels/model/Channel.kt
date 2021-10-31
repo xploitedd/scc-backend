@@ -19,8 +19,8 @@ data class ChannelUpdateInput(
 )
 
 @Serializable
-data class ChannelNewMemberInput(
-    val userId: String
+data class ChannelMemberInput(
+    val username: String
 )
 
 @Serializable
