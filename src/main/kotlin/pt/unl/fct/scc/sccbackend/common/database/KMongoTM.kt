@@ -23,14 +23,10 @@ class KMongoTM {
     private val databaseName = System.getenv(ENV_DATABASE_NAME)
         ?: throw Exception("The $ENV_DATABASE_NAME environment variable is not defined")
 
-    private val kMongo: CoroutineClient by lazy {
-        KMongo.createClient(connectionString)
-            .coroutine
-    }
+    private val kMongo = KMongo.createClient(connectionString)
+        .coroutine
 
-    private val database: CoroutineDatabase by lazy {
-        kMongo.getDatabase(databaseName)
-    }
+    private val database = kMongo.getDatabase(databaseName)
 
     init {
         registerModule(IdKotlinXSerializationModule)
