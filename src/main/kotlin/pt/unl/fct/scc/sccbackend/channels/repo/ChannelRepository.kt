@@ -1,6 +1,7 @@
 package pt.unl.fct.scc.sccbackend.channels.repo
 
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
+import pt.unl.fct.scc.sccbackend.channels.model.ChannelMessage
 import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.users.model.User
 
@@ -23,5 +24,13 @@ interface ChannelRepository {
     suspend fun addChannelMember(channel: Channel, username: String)
 
     suspend fun removeChannelMember(channel: Channel, username: String)
+
+    suspend fun getChannelMessages(channel: Channel, pagination: Pagination): Set<ChannelMessage>
+
+    suspend fun createChannelMessage(channel: Channel, message: ChannelMessage): ChannelMessage
+
+    suspend fun getChannelMessage(channel: Channel, messageId: String): ChannelMessage
+
+    suspend fun deleteChannelMessage(channel: Channel, message: ChannelMessage)
 
 }

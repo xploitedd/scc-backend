@@ -57,7 +57,7 @@ class ChannelsController(val repo: ChannelRepository) {
         @RequestBody channelInput: ChannelUpdateInput
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
-        checkChannelWriteAccess(user, channel)
+        checkChannelOwnerAccess(user, channel)
 
         repo.updateChannel(channelInput.toChannel(channel))
         return ResponseEntity.noContent()
@@ -71,7 +71,7 @@ class ChannelsController(val repo: ChannelRepository) {
         @PathVariable channelId: String
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
-        checkChannelWriteAccess(user, channel)
+        checkChannelOwnerAccess(user, channel)
 
         repo.deleteChannel(channel)
         return ResponseEntity.noContent().build()
@@ -100,7 +100,7 @@ class ChannelsController(val repo: ChannelRepository) {
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
         if (channel.private || memberInput != null) {
-            checkChannelWriteAccess(user, channel)
+            checkChannelOwnerAccess(user, channel)
             val userId = memberInput?.username
                 ?: throw BadRequestException("The username parameter should be specified")
 
@@ -120,7 +120,7 @@ class ChannelsController(val repo: ChannelRepository) {
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
         if (channel.private || memberInput != null) {
-            checkChannelWriteAccess(user, channel)
+            checkChannelOwnerAccess(user, channel)
             val userId = memberInput?.username
                 ?: throw BadRequestException("The username parameter should be specified")
 
@@ -129,6 +129,52 @@ class ChannelsController(val repo: ChannelRepository) {
             repo.removeChannelMember(channel, user.userId)
         }
 
+        return ResponseEntity.noContent().build()
+    }
+
+    @GetMapping(ChannelUri.CHANNEL_MESSAGES)
+    suspend fun getChannelMessages(
+        user: User?,
+        pagination: Pagination,
+        @PathVariable channelId: String
+    ): ResponseEntity<List<ChannelMessageReducedDto>> {
+        val channel = repo.getChannel(channelId)
+        checkChannelReadAccess(user, channel)
+
+        val messages = repo.getChannelMessages(channel, pagination)
+            .map { it.toReducedDto() }
+
+        return ResponseEntity.ok(messages)
+    }
+
+    @PostMapping(ChannelUri.CHANNEL_MESSAGES)
+    suspend fun createChannelMessage(
+        user: User,
+        @PathVariable channelId: String,
+        @RequestBody messageInput: ChannelMessageInput
+    ): ResponseEntity<Any> {
+        val channel = repo.getChannel(channelId)
+        checkChannelWriteAccess(user, channel)
+
+        val message = repo.createChannelMessage(channel, messageInput.toChannelMessage(channel, user))
+        return ResponseEntity.created(ChannelUri.forChannelMessage(channelId, message.messageId))
+            .build()
+    }
+
+    @DeleteMapping(ChannelUri.CHANNEL_MESSAGE)
+    suspend fun deleteChannelMessage(
+        user: User,
+        @PathVariable channelId: String,
+        @PathVariable messageId: String
+    ): ResponseEntity<Any> {
+        val channel = repo.getChannel(channelId)
+        checkChannelWriteAccess(user, channel)
+
+        val message = repo.getChannelMessage(channel, messageId)
+        if (user.userId != message.user && user.userId != channel.owner)
+            throw ForbiddenException()
+
+        repo.deleteChannelMessage(channel, message)
         return ResponseEntity.noContent().build()
     }
 
@@ -143,6 +189,15 @@ class ChannelsController(val repo: ChannelRepository) {
     }
 
     private suspend fun checkChannelWriteAccess(user: User, channel: Channel) {
+        if (!repo.isUserInChannel(channel, user)) {
+            if (channel.private)
+                throw NotFoundException()
+            else
+                throw ForbiddenException()
+        }
+    }
+
+    private suspend fun checkChannelOwnerAccess(user: User, channel: Channel) {
         if (channel.owner != user.userId) {
             // users that do not have knowledge of the channel should always get a 404
             if (repo.isUserInChannel(channel, user))

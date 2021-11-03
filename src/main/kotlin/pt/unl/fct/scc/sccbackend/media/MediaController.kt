@@ -29,12 +29,13 @@ class MediaController(val repo: MediaRepository) {
         if (!ALLOWED_MEDIA_TYPES.contains(contentType))
             throw BadRequestException("The media type $contentType is not allowed")
 
-        repo.createMedia(BlobInfo(
+        val media = repo.createMedia(BlobInfo(
             data,
             contentType
         ))
 
-        return ResponseEntity.ok().build()
+        return ResponseEntity.created(MediaUri.forMedia(media.blobName))
+            .build()
     }
 
     @GetMapping(MediaUri.MEDIA)

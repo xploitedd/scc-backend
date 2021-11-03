@@ -7,7 +7,13 @@ object ChannelUri {
     const val CHANNELS = "/channels"
     const val CHANNEL = "$CHANNELS/{channelId}"
     const val CHANNEL_MEMBERS = "$CHANNEL/members"
+    const val CHANNEL_MESSAGES = "$CHANNEL/messages"
+    const val CHANNEL_MESSAGE = "$CHANNEL_MESSAGES/{messageId}"
 
-    fun forChannel(channelId: String) = UriTemplate(CHANNEL).expand(channelId)
+    fun forChannel(channelId: String) =
+        UriTemplate(CHANNEL).expand(channelId)
+
+    fun forChannelMessage(channelId: String, messageId: String) =
+        UriTemplate(CHANNEL_MESSAGE).expand(channelId, messageId)
 
 }

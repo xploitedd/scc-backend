@@ -4,6 +4,7 @@ import org.litote.kmongo.eq
 import org.springframework.stereotype.Repository
 import pt.unl.fct.scc.sccbackend.common.cache.RedisClientProvider
 import pt.unl.fct.scc.sccbackend.common.cache.getV
+import pt.unl.fct.scc.sccbackend.common.cache.setV
 import pt.unl.fct.scc.sccbackend.common.database.KMongoTM
 import pt.unl.fct.scc.sccbackend.users.model.User
 
@@ -14,13 +15,17 @@ class AccessControlRepoImpl(
 ) : AccessControlRepo {
 
     override suspend fun getUserByUsername(username: String): User? {
-        val user = redis.use { getV<User>("user:$username") }
-        if (user != null)
-            return user
+        val cached = redis.use { getV<User>("user:$username") }
+        if (cached != null)
+            return cached
 
         return tm.use { db ->
             val col = db.getCollection<User>()
-            col.findOne(User::nickname eq username)
+            val user = col.findOne(User::nickname eq username)
+            if (user != null)
+                redis.use { setV("user:$username", user) }
+
+            user
         }
     }
 

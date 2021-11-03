@@ -1,17 +1,18 @@
 package pt.unl.fct.scc.sccbackend.channels.repo
 
+import io.lettuce.core.ScoredValue
 import kotlinx.coroutines.flow.collect
-import org.litote.kmongo.and
+import org.litote.kmongo.*
 import org.litote.kmongo.coroutine.updateOne
-import org.litote.kmongo.eq
-import org.litote.kmongo.or
 import org.springframework.stereotype.Repository
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
+import pt.unl.fct.scc.sccbackend.channels.model.ChannelMessage
 import pt.unl.fct.scc.sccbackend.common.BadRequestException
 import pt.unl.fct.scc.sccbackend.common.NotFoundException
 import pt.unl.fct.scc.sccbackend.common.cache.*
 import pt.unl.fct.scc.sccbackend.common.database.KMongoTM
 import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
+import pt.unl.fct.scc.sccbackend.media.model.Media
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.UserChannel
 
@@ -188,6 +189,102 @@ class ChannelRepositoryImpl(
         Unit
     }
 
+    override suspend fun getChannelMessages(channel: Channel, pagination: Pagination): Set<ChannelMessage> {
+        val cached = redis.use { zSetRange<ChannelMessage>("channel_messages:${channel.channelId}", 0, -1) }
+        if (!cached.isNullOrEmpty()) {
+            return cached.reversed()
+                .drop(pagination.offset)
+                .take(pagination.limit)
+                .toSet()
+        }
+
+        return tm.use { db ->
+            val col = db.getCollection<ChannelMessage>()
+            val messages = col.find(ChannelMessage::channelId eq channel.channelId)
+                .toList()
+
+            redis.use {
+                val scoredMessages = messages.map {
+                    ScoredValue.just(it.createdAt.toEpochMilli().toDouble(), it)
+                }.toTypedArray()
+
+                zSetAdd("channel_messages:${channel.channelId}", *scoredMessages)
+            }
+
+            messages.toSet()
+        }
+    }
+
+    override suspend fun createChannelMessage(channel: Channel, message: ChannelMessage) = tm.use { db ->
+        val messagesCol = db.getCollection<ChannelMessage>()
+        val mediaCol = db.getCollection<Media>()
+
+        if (message.media != null) {
+            val cachedMedia = redis.use { getV<Media>("media:${message.media}") }
+            if (cachedMedia == null) {
+                val media = mediaCol.findOne(Media::blobName eq message.media)
+                    ?: throw BadRequestException("Invalid message media blob")
+
+                redis.use { setV("media:${message.media}", media) }
+            }
+        }
+
+        if (message.replyTo != null) {
+            val cachedReplyTo = redis.use { getV<ChannelMessage>("message:${message.replyTo}") }
+            if (cachedReplyTo == null) {
+                val replyTo = messagesCol.findOne(ChannelMessage::messageId eq message.replyTo)
+                    ?: throw BadRequestException("The message you're replying to does not exist")
+
+                redis.use { setV("message:${message.replyTo}", replyTo) }
+            }
+        }
+
+        messagesCol.insertOne(message)
+
+        redis.use {
+            setV("message:${message.messageId}", message)
+            zSetAdd(
+                "channel_messages:${channel.channelId}",
+                ScoredValue.just(message.createdAt.toEpochMilli().toDouble(), message)
+            )
+        }
+
+        message
+    }
+
+    override suspend fun getChannelMessage(channel: Channel, messageId: String): ChannelMessage {
+        val cached = redis.use { getV<ChannelMessage>("message:${messageId}") }
+        if (cached != null)
+            return cached
+
+        return tm.use { db ->
+            val col = db.getCollection<ChannelMessage>()
+            val message = col.findOne(ChannelMessage::messageId eq messageId)
+                ?: throw NotFoundException()
+
+            redis.use { setV("message:${messageId}", message) }
+            message
+        }
+    }
+
+    override suspend fun deleteChannelMessage(channel: Channel, message: ChannelMessage) = tm.use { db ->
+        val messagesCol = db.getCollection<ChannelMessage>()
+        val mediaCol = db.getCollection<Media>()
+
+        messagesCol.deleteOne(ChannelMessage::messageId eq message.messageId)
+        if (message.media != null) {
+            mediaCol.deleteOne(Media::blobName eq message.media)
+            redis.use { del("media:${message.media}") }
+        }
+
+        redis.use {
+            del("message:${message.messageId}")
+            zSetRemove("channel_messages:${channel.channelId}", message)
+        }
+
+        Unit
+    }
+
     private suspend fun findUser(username: String): User {
         val cached = redis.use { getV<User>("user:$username") }
         if (cached != null)
@@ -196,7 +293,7 @@ class ChannelRepositoryImpl(
         return tm.use { db ->
             val userCol = db.getCollection<User>()
             val user = userCol.findOne(User::nickname eq username)
-                ?: throw BadRequestException("The specified User Id is invalid")
+                ?: throw BadRequestException("The specified user does not exist")
 
             redis.use { setV("user:$username", user) }
             user

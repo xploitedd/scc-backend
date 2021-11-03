@@ -28,19 +28,8 @@ data class Channel(
     val name: String,
     val owner: String,
     val private: Boolean,
-    val messages: List<ChannelMessage> = emptyList(),
     @SerialName("_id")
     val channelId: String = newId<Channel>().toString()
-)
-
-@Serializable
-data class ChannelMessage(
-    val user: String,
-    val text: String,
-    val media: String?,
-    val replyTo: String?,
-    @SerialName("_id")
-    val messageId: String = newId<ChannelMessage>().toString(),
 )
 
 @Serializable
@@ -68,6 +57,5 @@ fun ChannelUpdateInput.toChannel(channel: Channel) = Channel(
     name ?: channel.name,
     owner ?: channel.owner,
     private ?: channel.private,
-    channel.messages,
     channel.channelId
 )
