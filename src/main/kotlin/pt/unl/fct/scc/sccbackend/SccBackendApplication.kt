@@ -1,5 +1,6 @@
 package pt.unl.fct.scc.sccbackend
 
+import kotlinx.serialization.json.Json
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
@@ -22,7 +23,9 @@ import pt.unl.fct.scc.sccbackend.common.pagination.PaginationResolver
 class SccBackendConfiguration : WebMvcConfigurer {
 
 	override fun extendMessageConverters(converters: MutableList<HttpMessageConverter<*>>) {
-		converters.add(0, KotlinSerializationJsonHttpMessageConverter())
+		converters.add(0, KotlinSerializationJsonHttpMessageConverter(Json {
+			prettyPrint = true
+		}))
 	}
 
 	@Bean

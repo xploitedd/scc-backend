@@ -1,6 +1,7 @@
 package pt.unl.fct.scc.sccbackend.common
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -47,6 +48,11 @@ class ExceptionsAdvice {
         req: HttpServletRequest,
         ex: HttpMessageNotReadableException
     ): ResponseEntity<HttpError> {
+        // Currently, we can't check if it was a missing field due to the fact that the MissingFieldException is internal
+        // If this changes in the future we can respond to the user with a more comprehensive error message, rather than
+        // just "The request is malformed", which lacks in usefulness
+        // See: https://github.com/Kotlin/kotlinx.serialization/issues/1266
+
         return buildHttpError(
             "The request is malformed",
             HttpStatus.BAD_REQUEST
