@@ -1,0 +1,54 @@
+config:
+  target: 'https://scc2122appwesteuropenmp.azurewebsites.net/rest'
+#  target: 'http://localhost:8080/scc2122-backend/rest'
+  http:
+    timeout: 10
+  plugins:
+    metrics-by-endpoint: {}
+  processor: "./test-utils.js"
+  variables:
+     metricsProcessEndpoint : "myProcessEndpoint"  # function used to aggregate endpoints for statistics
+  phases:
+  - name: "Create messages"    # Create messages
+    arrivalCount: 10         
+    duration: 20
+
+scenarios:
+  - name: 'Create message'
+    weight: 1
+    flow:
+      - loop:                         # Let's create 2000 messages
+        - function: "selectUserSkewed"
+        #auth?
+        - get:                          # Get user info
+            url: "/users/{{ user }}"
+            headers:
+              Accept: application/json
+            capture: 
+              json: "$"
+              as: "userObj"
+        - function: "selectChannelFromUserSkewed"   # Select channel to post message
+        - function: "genNewMessage"           # Generate message information
+        - post:                          # Post image if ....
+            url: "/media"
+            headers:
+              Content-Type: application/octet-stream
+              Accept: application/json
+            beforeRequest: "uploadImageBody"
+            capture: 
+              regexp: "(.+)"
+              as: "imageId"              # capture the reply as image id to be used in user creation
+            ifTrue: "hasImage"   # post has image and there is a channel
+        - post:                          # Post message
+            url: "/messages"
+            headers:
+              Content-Type: application/json
+              Accept: application/json
+            json:                         # NOTE: it is not necessary to send all fields
+              channelId: "{{ channelId }}"
+              messageId: "{{messageId}}"
+              user: "{{ user }}"
+              text: "{{ msgText }}"
+              media: "{{ imageId }}"
+            ifTrue: "channelId"
+        count: 200
