@@ -33,7 +33,7 @@ class ChannelsController(val repo: ChannelRepository) {
         @RequestBody channelInput: ChannelCreateInput
     ): ResponseEntity<Any> {
         val channel = repo.createChannel(channelInput.toChannel(user))
-        repo.addChannelMember(channel, user.userId)
+        repo.addChannelMember(channel, user.nickname)
 
         return ResponseEntity.created(ChannelUri.forChannel(channel.channelId))
             .build()
@@ -101,12 +101,12 @@ class ChannelsController(val repo: ChannelRepository) {
         val channel = repo.getChannel(channelId)
         if (channel.private || memberInput != null) {
             checkChannelOwnerAccess(user, channel)
-            val userId = memberInput?.username
+            val username = memberInput?.username
                 ?: throw BadRequestException("The username parameter should be specified")
 
-            repo.addChannelMember(channel, userId)
+            repo.addChannelMember(channel, username)
         } else {
-            repo.addChannelMember(channel, user.userId)
+            repo.addChannelMember(channel, user.nickname)
         }
 
         return ResponseEntity.noContent().build()
@@ -119,14 +119,14 @@ class ChannelsController(val repo: ChannelRepository) {
         @RequestBody memberInput: ChannelMemberInput?
     ): ResponseEntity<Any> {
         val channel = repo.getChannel(channelId)
-        if (channel.private || memberInput != null) {
-            checkChannelOwnerAccess(user, channel)
-            val userId = memberInput?.username
-                ?: throw BadRequestException("The username parameter should be specified")
+        if (memberInput != null) {
+            if (channel.private)
+                checkChannelOwnerAccess(user, channel)
 
-            repo.removeChannelMember(channel, userId)
+            val username = memberInput.username
+            repo.removeChannelMember(channel, username)
         } else {
-            repo.removeChannelMember(channel, user.userId)
+            repo.removeChannelMember(channel, user.nickname)
         }
 
         return ResponseEntity.noContent().build()

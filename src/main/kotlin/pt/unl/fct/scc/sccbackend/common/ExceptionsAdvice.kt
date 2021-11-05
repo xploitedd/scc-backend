@@ -1,7 +1,6 @@
 package pt.unl.fct.scc.sccbackend.common
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -53,6 +52,7 @@ class ExceptionsAdvice {
         // just "The request is malformed", which lacks in usefulness
         // See: https://github.com/Kotlin/kotlinx.serialization/issues/1266
 
+        log.error(ex.localizedMessage)
         return buildHttpError(
             "The request is malformed",
             HttpStatus.BAD_REQUEST

@@ -2,7 +2,6 @@ package pt.unl.fct.scc.sccbackend.common.database
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.litote.kmongo.coroutine.CoroutineClient
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.commitTransactionAndAwait
 import org.litote.kmongo.coroutine.coroutine

@@ -2,8 +2,9 @@ package pt.unl.fct.scc.sccbackend.channels.repo
 
 import io.lettuce.core.ScoredValue
 import kotlinx.coroutines.flow.collect
-import org.litote.kmongo.*
+import org.litote.kmongo.and
 import org.litote.kmongo.coroutine.updateOne
+import org.litote.kmongo.eq
 import org.springframework.stereotype.Repository
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelMessage
@@ -35,9 +36,9 @@ class ChannelRepositoryImpl(
             val col = db.getCollection<Channel>()
             val channels = col.find()
                 .toList()
-                .toTypedArray()
 
-            redis.use { setAdd("channels", *channels) }
+            if (channels.isNotEmpty())
+                redis.use { setAdd("channels", *channels.toTypedArray()) }
 
             channels.filter { !it.private || (user != null && isUserInChannel(it, user)) }
                 .drop(pagination.offset)
@@ -80,7 +81,7 @@ class ChannelRepositoryImpl(
         userCol.findOne(User::userId eq update.owner)
             ?: throw BadRequestException("The specified owner does not exist")
 
-        val old = channelCol.find(Channel::channelId eq update.channelId)
+        val old = channelCol.findOne(Channel::channelId eq update.channelId)
         channelCol.updateOne(update)
 
         redis.use {
@@ -144,9 +145,9 @@ class ChannelRepositoryImpl(
             val results = userChannelCol.find(UserChannel::channel eq channel.channelId)
                 .toList()
                 .mapNotNull { userCol.findOne(User::userId eq it.user) }
-                .toTypedArray()
 
-            redis.use { setAdd("channel_users:${channel.channelId}", *results) }
+            if (results.isNotEmpty())
+                redis.use { setAdd("channel_users:${channel.channelId}", *results.toTypedArray()) }
 
             results.drop(pagination.offset)
                 .take(pagination.limit)
@@ -174,6 +175,9 @@ class ChannelRepositoryImpl(
         val user = findUser(username)
         if (!isUserInChannel(channel, user))
             throw BadRequestException("The specified user is not subscribed to the channel")
+
+        if (user.userId == channel.owner)
+            throw BadRequestException("You cannot be removed from this channel since you are the owner")
 
         val userChannelCol = db.getCollection<UserChannel>()
         userChannelCol.deleteOne(and(
@@ -205,10 +209,11 @@ class ChannelRepositoryImpl(
 
             redis.use {
                 val scoredMessages = messages.map {
-                    ScoredValue.just(it.createdAt.toEpochMilli().toDouble(), it)
-                }.toTypedArray()
+                    ScoredValue.just(it.createdAt.toDouble(), it)
+                }
 
-                zSetAdd("channel_messages:${channel.channelId}", *scoredMessages)
+                if (scoredMessages.isNotEmpty())
+                    zSetAdd("channel_messages:${channel.channelId}", *scoredMessages.toTypedArray())
             }
 
             messages.toSet()
@@ -245,7 +250,7 @@ class ChannelRepositoryImpl(
             setV("message:${message.messageId}", message)
             zSetAdd(
                 "channel_messages:${channel.channelId}",
-                ScoredValue.just(message.createdAt.toEpochMilli().toDouble(), message)
+                ScoredValue.just(message.createdAt.toDouble(), message)
             )
         }
 

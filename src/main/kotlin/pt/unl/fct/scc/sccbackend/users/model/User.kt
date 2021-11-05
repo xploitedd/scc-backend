@@ -5,8 +5,6 @@ import kotlinx.serialization.Serializable
 import org.litote.kmongo.newId
 import org.springframework.security.crypto.password.PasswordEncoder
 
-const val DEFAULT_USER_PHOTO = "default"
-
 @Serializable
 data class UserCreateInput(
     val nickname: String,
@@ -26,7 +24,7 @@ data class User(
     val nickname: String,
     val name: String,
     val password: String,
-    val photo: String,
+    val photo: String? = null,
     @SerialName("_id")
     val userId: String = newId<User>().toString()
 )
@@ -35,7 +33,7 @@ data class User(
 data class PublicUserReducedDto(
     val nickname: String,
     val name: String,
-    val photo: String
+    val photo: String?
 )
 
 fun User.toPublicReducedDto() = PublicUserReducedDto(
@@ -47,8 +45,7 @@ fun User.toPublicReducedDto() = PublicUserReducedDto(
 fun UserCreateInput.toUser(encoder: PasswordEncoder) = User(
     nickname,
     name,
-    encoder.encode(password),
-    DEFAULT_USER_PHOTO
+    encoder.encode(password)
 )
 
 fun UserUpdateInput.toUser(user: User, encoder: PasswordEncoder) = User(

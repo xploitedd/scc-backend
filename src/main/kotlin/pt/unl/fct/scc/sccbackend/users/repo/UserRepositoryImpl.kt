@@ -1,7 +1,6 @@
 package pt.unl.fct.scc.sccbackend.users.repo
 
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.mapNotNull
 import org.litote.kmongo.coroutine.updateOne
 import org.litote.kmongo.eq
 import org.springframework.stereotype.Repository
@@ -13,7 +12,6 @@ import pt.unl.fct.scc.sccbackend.common.cache.*
 import pt.unl.fct.scc.sccbackend.common.database.KMongoTM
 import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.media.model.Media
-import pt.unl.fct.scc.sccbackend.users.model.DEFAULT_USER_PHOTO
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.UserChannel
 
@@ -60,7 +58,7 @@ class UserRepositoryImpl(
     }
 
     override suspend fun updateUser(update: User) = tm.useTransaction { db ->
-        if (update.photo != DEFAULT_USER_PHOTO) {
+        if (update.photo != null) {
             if (redis.use { getV<Media>("media:${update.photo}") } == null) {
                 val mediaCol = db.getCollection<Media>()
                 val media = mediaCol.findOne(Media::blobName eq update.photo)
@@ -93,10 +91,12 @@ class UserRepositoryImpl(
         redis.use {
             del("user:${user.nickname}")
             del("user_channels:${user.nickname}")
-            del("media:${user.photo}")
             keys("channel_users:*").collect {
                 setRemove(it, user)
             }
+
+            if (user.photo != null)
+                del("media:${user.photo}")
         }
 
         Unit
@@ -117,9 +117,9 @@ class UserRepositoryImpl(
             val result = userChannelCol.find(UserChannel::user eq user.userId)
                 .toList()
                 .mapNotNull { channelCol.findOne(Channel::channelId eq it.channel) }
-                .toTypedArray()
 
-            redis.use { setAdd("user_channels:${user.nickname}", *result) }
+            if (result.isNotEmpty())
+                redis.use { setAdd("user_channels:${user.nickname}", *result.toTypedArray()) }
 
             result.drop(pagination.offset)
                 .take(pagination.limit)

@@ -21,8 +21,7 @@ data class ChannelMessage(
     val text: String,
     val media: String? = null,
     val replyTo: String? = null,
-    @Contextual
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Long = Instant.now().toEpochMilli(),
     @SerialName("_id")
     val messageId: String = newId<ChannelMessage>().toString(),
 )
@@ -32,6 +31,7 @@ data class ChannelMessageReducedDto(
     val messageId: String,
     val user: String,
     val text: String,
+    val timestamp: Long,
     val media: String? = null,
     val replyTo: String? = null
 )
@@ -48,6 +48,7 @@ fun ChannelMessage.toReducedDto() = ChannelMessageReducedDto(
     messageId,
     user,
     text,
+    createdAt,
     media,
     replyTo
 )

@@ -2,7 +2,6 @@ package pt.unl.fct.scc.sccbackend.common.cache
 
 import io.lettuce.core.ScoredValue
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toSet
 import kotlinx.serialization.decodeFromString
@@ -75,7 +74,7 @@ suspend inline fun <reified T> RedisCoroutinesCommands<String, String>.setMember
 
 suspend inline fun <reified T> RedisCoroutinesCommands<String, String>.zSetAdd(key: String, vararg values: ScoredValue<T>): Long? {
     val stringValues = values.map { ScoredValue.just(it.score, Json.encodeToString(it.value)) }
-    return zadd(key, stringValues)
+    return zadd(key, *stringValues.toTypedArray())
 }
 
 suspend inline fun <reified T> RedisCoroutinesCommands<String, String>.zSetRemove(key: String, vararg values: T): Long? {
