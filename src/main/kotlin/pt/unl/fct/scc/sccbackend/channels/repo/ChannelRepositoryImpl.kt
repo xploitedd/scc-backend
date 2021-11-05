@@ -176,7 +176,7 @@ class ChannelRepositoryImpl(
         if (!isUserInChannel(channel, user))
             throw BadRequestException("The specified user is not subscribed to the channel")
 
-        if (user.userId == channel.owner)
+        if (user.nickname == channel.owner)
             throw BadRequestException("You cannot be removed from this channel since you are the owner")
 
         val userChannelCol = db.getCollection<UserChannel>()

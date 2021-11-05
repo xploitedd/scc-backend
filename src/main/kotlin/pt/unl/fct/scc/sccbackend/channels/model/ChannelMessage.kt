@@ -38,7 +38,7 @@ data class ChannelMessageReducedDto(
 
 fun ChannelMessageInput.toChannelMessage(channel: Channel, user: User) = ChannelMessage(
     channel.channelId,
-    user.userId,
+    user.nickname,
     text,
     media,
     replyTo

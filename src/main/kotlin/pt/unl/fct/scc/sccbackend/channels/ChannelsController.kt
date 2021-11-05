@@ -171,7 +171,7 @@ class ChannelsController(val repo: ChannelRepository) {
         checkChannelWriteAccess(user, channel)
 
         val message = repo.getChannelMessage(channel, messageId)
-        if (user.userId != message.user && user.userId != channel.owner)
+        if (user.nickname != message.user && user.nickname != channel.owner)
             throw ForbiddenException()
 
         repo.deleteChannelMessage(channel, message)
@@ -183,7 +183,7 @@ class ChannelsController(val repo: ChannelRepository) {
             if (user == null)
                 throw NotFoundException()
 
-            if (channel.owner != user.userId && !repo.isUserInChannel(channel, user))
+            if (channel.owner != user.nickname && !repo.isUserInChannel(channel, user))
                 throw NotFoundException()
         }
     }
@@ -198,7 +198,7 @@ class ChannelsController(val repo: ChannelRepository) {
     }
 
     private suspend fun checkChannelOwnerAccess(user: User, channel: Channel) {
-        if (channel.owner != user.userId) {
+        if (channel.owner != user.nickname) {
             // users that do not have knowledge of the channel should always get a 404
             if (repo.isUserInChannel(channel, user))
                 throw ForbiddenException()

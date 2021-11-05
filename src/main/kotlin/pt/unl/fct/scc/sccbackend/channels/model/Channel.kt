@@ -49,7 +49,7 @@ fun Channel.toReducedDto() = ChannelReducedDto(
 
 fun ChannelCreateInput.toChannel(user: User) = Channel(
     name,
-    user.userId,
+    user.nickname,
     private
 )
 
