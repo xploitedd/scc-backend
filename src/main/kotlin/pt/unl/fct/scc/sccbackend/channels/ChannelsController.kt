@@ -31,12 +31,12 @@ class ChannelsController(val repo: ChannelRepository) {
     suspend fun createChannel(
         user: User,
         @RequestBody channelInput: ChannelCreateInput
-    ): ResponseEntity<Any> {
+    ): ResponseEntity<ChannelReducedDto> {
         val channel = repo.createChannel(channelInput.toChannel(user))
         repo.addChannelMember(channel, user.nickname)
 
         return ResponseEntity.created(ChannelUri.forChannel(channel.channelId))
-            .build()
+            .body(channel.toReducedDto())
     }
 
     @GetMapping(ChannelUri.CHANNEL)
@@ -152,13 +152,13 @@ class ChannelsController(val repo: ChannelRepository) {
         user: User,
         @PathVariable channelId: String,
         @RequestBody messageInput: ChannelMessageInput
-    ): ResponseEntity<Any> {
+    ): ResponseEntity<ChannelMessageReducedDto> {
         val channel = repo.getChannel(channelId)
         checkChannelWriteAccess(user, channel)
 
         val message = repo.createChannelMessage(channel, messageInput.toChannelMessage(channel, user))
         return ResponseEntity.created(ChannelUri.forChannelMessage(channelId, message.messageId))
-            .build()
+            .body(message.toReducedDto())
     }
 
     @DeleteMapping(ChannelUri.CHANNEL_MESSAGE)
