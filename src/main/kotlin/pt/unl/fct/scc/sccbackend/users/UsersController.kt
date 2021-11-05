@@ -19,10 +19,10 @@ class UsersController(
     @PostMapping(UserUri.USERS)
     suspend fun createUser(
         @RequestBody userInput: UserCreateInput
-    ): ResponseEntity<Any> {
+    ): ResponseEntity<PublicUserReducedDto> {
         val createdUser = repo.createUser(userInput.toUser(passwordEncoder))
         return ResponseEntity.created(UserUri.forUser(createdUser.nickname))
-            .build()
+            .body(createdUser.toPublicReducedDto())
     }
 
     @GetMapping(UserUri.USER)

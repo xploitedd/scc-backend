@@ -70,6 +70,8 @@ class ExceptionsAdvice {
         )
     }
 
+    // TODO: HttpMediaTypeNotSupported
+
     @ExceptionHandler(value = [Exception::class])
     fun handleServerError(
         req: HttpServletRequest,

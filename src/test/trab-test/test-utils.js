@@ -47,11 +47,11 @@ var statsRegExpr = [ [/.*\/rest\/media\/.*/,"GET","/rest/media/*"],
 
 // Function used to compress statistics
 global.myProcessEndpoint = function( str, method) {
-	var i = 0;
-	for( i = 0; i < statsRegExpr.length; i++) {
-		if( method == statsRegExpr[i][1] && str.match(statsRegExpr[i][0]) != null)
+	for(let i = 0; i < statsRegExpr.length; i++) {
+		if(method === statsRegExpr[i][1] && str.match(statsRegExpr[i][0]) != null)
 			return method + ":" + statsRegExpr[i][2];
 	}
+
 	return method + ":" + str;
 }
 
@@ -80,20 +80,21 @@ function randomSkewed( val){
 
 // Loads data about images from disk
 function loadData() {
-	var basedir
-	if( fs.existsSync( '/images')) 
+	let basedir
+	if(fs.existsSync('/images'))
 		basedir = '/images'
 	else
-		basedir =  'images'	
+		basedir = 'images'
+
 	fs.readdirSync(basedir).forEach( file => {
-		if( path.extname(file) === ".jpeg") {
-			var img  = fs.readFileSync(basedir + "/" + file)
-			images.push( img)
+		if(path.extname(file) === ".jpeg") {
+			const img = fs.readFileSync(basedir + "/" + file)
+			images.push(img)
 		}
 	})
-	var str;
-	if( fs.existsSync('users.data')) {
-		str = fs.readFileSync('users.data','utf8')
+
+	if(fs.existsSync('users.data')) {
+		const str = fs.readFileSync('users.data','utf8')
 		users = JSON.parse(str)
 	} 
 }
@@ -113,9 +114,10 @@ function uploadImageBody(requestParams, context, ee, next) {
  * Update the next image to read.
  */
 function processUploadReply(requestParams, response, context, ee, next) {
-	if( typeof response.body !== 'undefined' && response.body.length > 0) {
+	if(typeof response.body !== 'undefined' && response.body.length > 0) {
 		imagesIds.push(response.body)
 	}
+
     return next()
 }
 
@@ -128,6 +130,7 @@ function selectImageToDownload(context, events, done) {
 	} else {
 		delete context.vars.imageId
 	}
+
 	return done()
 }
 
@@ -138,9 +141,9 @@ function selectImageToDownload(context, events, done) {
 function genNewUser(context, events, done) {
 	const first = `${Faker.name.firstName()}`
 	const last = `${Faker.name.lastName()}`
-	context.vars.id = first + "." + last
+	context.vars.nickname = (first + last).toLowerCase()
 	context.vars.name = first + " " + last
-	context.vars.pwd = `${Faker.internet.password()}`
+	context.vars.password = `${Faker.internet.password()}`
 	return done()
 }
 
@@ -149,11 +152,16 @@ function genNewUser(context, events, done) {
  * Process reply for of new users to store the id on file
  */
 function genNewUserReply(requestParams, response, context, ee, next) {
-	if( response.statusCode >= 200 && response.statusCode < 300 && response.body.length > 0)  {
-		let u = JSON.parse( response.body)
-		users.push(u)
-		fs.writeFileSync('users.data', JSON.stringify(users));
+	if(response.statusCode >= 200 && response.statusCode < 300)  {
+		users.push({
+			nickname: context.vars.nickname,
+			name: context.vars.name,
+			password: context.vars.password
+		})
+
+		fs.writeFileSync('users.data', JSON.stringify(users))
 	}
+
     return next()
 }
 
@@ -161,14 +169,15 @@ function genNewUserReply(requestParams, response, context, ee, next) {
  * Select user
  */
 function selectUser(context, events, done) {
-	if( users.length > 0) {
-		let user = users.sample()
+	if(users.length > 0) {
+		const user = users.sample()
 		context.vars.user = user.id
 		context.vars.pwd = user.pwd
 	} else {
 		delete context.vars.user
 		delete context.vars.pwd
 	}
+
 	return done()
 }
 
@@ -177,14 +186,15 @@ function selectUser(context, events, done) {
  * Select user
  */
 function selectUserSkewed(context, events, done) {
-	if( users.length > 0) {
-		let user = users.sampleSkewed()
-		context.vars.user = user.id
-		context.vars.pwd = user.pwd
+	if(users.length > 0) {
+		const user = users.sampleSkewed()
+		context.vars.nickname = user.nickname
+		context.vars.password = user.password
 	} else {
-		delete context.vars.user
-		delete context.vars.pwd
+		delete context.vars.nickname
+		delete context.vars.password
 	}
+
 	return done()
 }
 
@@ -202,11 +212,11 @@ function genNewChannel(context, events, done) {
  * Select a channel from the list of channelIds in a user
  */
 function selectChannelFromUser(context, events, done) {
-	if( typeof context.vars.userObj !== 'undefined' && context.vars.userObj.channelIds  !== 'undefined' &&
-				context.vars.userObj.channelIds.length > 0)
-		context.vars.channelId = context.vars.userObj.channelIds.sample()
+	if(context.vars.userChannels !== undefined && context.vars.userChannels.length > 0)
+		context.vars.channelId = context.vars.userChannels.map(c => c.channelId).sample()
 	else 
 		delete context.vars.channelId
+
 	return done()
 }
 
@@ -214,11 +224,11 @@ function selectChannelFromUser(context, events, done) {
  * Select a channel from the list of channelIds in a user
  */
 function selectChannelFromUserSkewed(context, events, done) {
-	if( typeof context.vars.userObj !== 'undefined' && context.vars.userObj.channelIds  !== 'undefined' &&
-				context.vars.userObj.channelIds.length > 0)
-		context.vars.channelId = context.vars.userObj.channelIds.sampleSkewed()
-	else 
+	if(context.vars.userChannels !== undefined && context.vars.userChannels.length > 0)
+		context.vars.channelId = context.vars.userChannels.map(c => c.channelId).sampleSkewed()
+	else
 		delete context.vars.channelId
+
 	return done()
 }
 
@@ -226,7 +236,7 @@ function selectChannelFromUserSkewed(context, events, done) {
  * Select a channel from the list of channelIds in a user
  */
 function selectChannelFromChannelLst(context, events, done) {
-	if( typeof context.vars.channelLst !== 'undefined' && context.vars.channelLst.length > 0)
+	if(typeof context.vars.channelLst !== 'undefined' && context.vars.channelLst.length > 0)
 		context.vars.channelId = context.vars.channelLst.sample()
 	else 
 		delete context.vars.channelId
@@ -237,10 +247,11 @@ function selectChannelFromChannelLst(context, events, done) {
  * Select a channel from the list of channelIds in a user
  */
 function selectChannelFromChannelLstSkewed(context, events, done) {
-	if( typeof context.vars.channelLst !== 'undefined' && context.vars.channelLst.length > 0)
+	if(typeof context.vars.channelLst !== 'undefined' && context.vars.channelLst.length > 0)
 		context.vars.channelId = context.vars.channelLst.sampleSkewed()
 	else 
 		delete context.vars.channelId
+
 	return done()
 }
 
@@ -250,11 +261,12 @@ function selectChannelFromChannelLstSkewed(context, events, done) {
  */
 function genNewMessage(context, events, done) {
 	context.vars.msgText = `${Faker.lorem.paragraph()}`
-	if( Math.random() < 0.05) {
+	if(Math.random() < 0.05) {
 		context.vars.hasImage = true
 	} else {
 		delete context.vars.hasImage
 	}
+
 	context.vars.imageId = null
 	return done()
 }
@@ -264,15 +276,15 @@ function genNewMessage(context, events, done) {
  */
 function selectImagesIdFromMsgList(context, events, done) {
 	let imageIdLst = []
-	if( typeof context.vars.msgList !== 'undefined') {
-		let msg
-		for( msg in context.vars.msgList) {
-			if( msg.imageId != null){
-				if( ! imageIdLst.includes( msg.imageId))
+	if(typeof context.vars.msgList !== 'undefined') {
+		for(const msg in context.vars.msgList) {
+			if(msg.imageId != null){
+				if(!imageIdLst.includes( msg.imageId))
 					imageIdLst.push(msg.imageId)
 			}
 		}
 	}
+
 	context.vars.imageIdLst = imageIdLst
 	return done()
 }

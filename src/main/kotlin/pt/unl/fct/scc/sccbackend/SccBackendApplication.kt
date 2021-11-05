@@ -27,7 +27,6 @@ import pt.unl.fct.scc.sccbackend.common.pagination.PaginationResolver
 class SccBackendConfiguration : WebMvcConfigurer {
 
 	override fun extendMessageConverters(converters: MutableList<HttpMessageConverter<*>>) {
-		converters.clear()
 		converters.add(0, KotlinSerializationJsonHttpMessageConverter(Json {
 			prettyPrint = true
 		}))

@@ -1,15 +1,15 @@
 config:
-  target: 'https://scc2122appwesteuropenmp.azurewebsites.net/rest'
-#  target: 'http://localhost:8080/scc2122-backend/rest'
+  # target: 'https://scc2122appwesteuropenmp.azurewebsites.net/rest'
+  target: 'http://localhost:8080'
   http:
     timeout: 10
   plugins:
     metrics-by-endpoint: {}
   processor: "./test-utils.js"
   variables:
-     metricsProcessEndpoint : "myProcessEndpoint"  # function used to aggregate endpoints for statistics
+     metricsProcessEndpoint : "myProcessEndpoint"
   phases:
-  - name: "Create users"    # Create users
+  - name: "Create users"
     duration: 1
     arrivalCount: 1
 
@@ -17,27 +17,41 @@ scenarios:
   - name: 'Create users'
     weight: 1
     flow:
-      - loop:                            # let's create 100 users - loop ... count
-        - post:                          # First: post image for the user
-            url: "/media"
-            headers:
-              Content-Type: application/octet-stream
-              Accept: application/json
-            beforeRequest: "uploadImageBody"
-            capture: 
-              regexp: "(.+)"
-              as: "imageId"              # capture the reply as image id to be used in user creation
-        - function: "genNewUser"         # Generate the needed information for the user
+      - loop:
+        - function: "genNewUser"
+        - log: "Creating new user {{ nickname }} with password {{ password }}"
         - post:
             url: "/users"
             headers:
               Content-Type: application/json
               Accept: application/json
             json:
-              userId: "{{ id }}"
               name: "{{ name }}"
               nickname: "{{ nickname }}"
               password: "{{ password }}"
+            afterResponse: "genNewUserReply"
+        - log: "Uploading media as user {{ nickname }}"
+        - post:
+            url: "/media"
+            auth:
+              user: "{{ nickname }}"
+              pass: "{{ password }}"
+            headers:
+              Content-Type: "image/jpeg"
+              Accept: application/json
+            beforeRequest: "uploadImageBody"
+            capture:
+              json: "$.imageId"
+              as: "imageId"
+        - log: "Updating user {{ nickname }} with photo {{ imageId }}"
+        - patch:
+            url: "/users/me"
+            auth:
+              user: "{{ nickname }}"
+              pass: "{{ password }}"
+            headers:
+              Content-Type: application/json
+              Accept: application/json
+            json:
               photo: "{{ imageId }}"
-            afterResponse: "genNewUserReply"    # capture result and store in file
         count: 100

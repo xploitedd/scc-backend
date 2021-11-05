@@ -6,6 +6,9 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import pt.unl.fct.scc.sccbackend.common.BadRequestException
 import pt.unl.fct.scc.sccbackend.common.storage.BlobInfo
+import pt.unl.fct.scc.sccbackend.media.model.Media
+import pt.unl.fct.scc.sccbackend.media.model.MediaDto
+import pt.unl.fct.scc.sccbackend.media.model.toMediaDto
 import pt.unl.fct.scc.sccbackend.media.repo.MediaRepository
 import pt.unl.fct.scc.sccbackend.users.model.User
 import javax.servlet.http.HttpServletRequest
@@ -24,7 +27,7 @@ class MediaController(val repo: MediaRepository) {
         req: HttpServletRequest,
         user: User,
         @RequestBody data: ByteArray
-    ): ResponseEntity<Any> {
+    ): ResponseEntity<MediaDto> {
         val contentType = req.contentType
         if (!ALLOWED_MEDIA_TYPES.contains(contentType))
             throw BadRequestException("The media type $contentType is not allowed")
@@ -35,7 +38,7 @@ class MediaController(val repo: MediaRepository) {
         ))
 
         return ResponseEntity.created(MediaUri.forMedia(media.blobName))
-            .build()
+            .body(media.toMediaDto())
     }
 
     @GetMapping(MediaUri.MEDIA)

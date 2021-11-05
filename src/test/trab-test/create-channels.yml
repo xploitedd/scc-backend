@@ -7,9 +7,9 @@ config:
     metrics-by-endpoint: {}
   processor: "./test-utils.js"
   variables:
-     metricsProcessEndpoint : "myProcessEndpoint"  # function used to aggregate endpoints for statistics
+     metricsProcessEndpoint : "myProcessEndpoint"
   phases:
-  - name: "Create channels"    # Create channels
+  - name: "Create channels"
     duration: 1
     arrivalCount: 1
 
@@ -17,48 +17,59 @@ scenarios:
   - name: 'Create channels'
     weight: 1
     flow:
-      - loop:                            # let's create 10 public channels - loop ... count
-        - function: "genNewChannel"
-        #auth?
-        - post:                          # Create channel
-            url: "/channels"
-            headers:
-              Content-Type: application/json
-              Accept: application/json
-            json:
-              name: "{{ channelName }}"
-              owner: "{{ user }}"
-              private: true
-            capture:                     # Capturing channel id
-              - json: $.id
-                as: "channelId"
-        - loop:                          # Let's add 20 users to the channel
+      # generate 20 public channels
+      - loop:
           - function: "selectUserSkewed"
-          #auth?
-          - post:                          # Subscribe
-              url: "/users/{{ user }}/me/channels/{{ channelId }}"
-          count: 20
-        count: 10
-      - loop:                            # let's create 45 private channels - loop ... count
+          - function: "genNewChannel"
+          - post:
+              url: "/channels"
+              auth:
+                user: "{{ nickname }}"
+                pass: "{{ password }}"
+              headers:
+                Content-Type: application/json
+                Accept: application/json
+              json:
+                name: "{{ channelName }}"
+                private: true
+              capture:
+                - json: $.id
+                  as: "channelId"
+          - loop:
+              - function: "selectUserSkewed"
+              - put:
+                  url: "/channels/{{ channelId }}/members"
+                  auth:
+                    user: "{{ nickname }}"
+                    pass: "{{ password }}"
+            count: 10
+        count: 20
+
+      # generate 45 private channels
+      - loop:
         - function: "selectUserSkewed"
-        auth?
         - function: "genNewChannel"
-        - post:                          # Create channel
+        - post:
             url: "/channels"
+            auth:
+              user: "{{ nickname }}"
+              pass: "{{ password }}"
             headers:
               Content-Type: application/json
               Accept: application/json
             json:
               name: "{{ channelName }}"
-              owner: "{{ user }}"
-              private: false
-            capture:                     # Capturing channel id
+              private: true
+            capture:
               - json: $.id
                 as: "channelId"
-        - loop:                          # Let's add 10 users to the channel
+        - loop:
           - function: "selectUserSkewed"
-          - post:                          # Add user to private channel
-              url: "/channels/{{ channelId }}/members/{{ user }}"
+          - put:
+              url: "/channels/{{ channelId }}/members"
+              auth:
+                user: "{{ nickname }}"
+                pass: "{{ password }}"
           count: 10
         count: 45
 

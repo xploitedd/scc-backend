@@ -24,7 +24,7 @@ scenarios:
       #auth?
       - - loop:
         - get:                          # Get user channels
-            url: "/users/{{ user }}/me/channels"
+            url: "/users/me/channels"
             headers:
               Accept: application/json
             capture: 
