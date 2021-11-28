@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.collect
 import org.litote.kmongo.and
 import org.litote.kmongo.coroutine.updateOne
 import org.litote.kmongo.eq
+import org.litote.kmongo.setValue
 import org.springframework.stereotype.Repository
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelMessage
@@ -34,7 +35,7 @@ class ChannelRepositoryImpl(
 
         return tm.use { db ->
             val col = db.getCollection<Channel>()
-            val channels = col.find()
+            val channels = col.find(Channel::deleted eq false)
                 .toList()
 
             if (channels.isNotEmpty())
@@ -66,7 +67,7 @@ class ChannelRepositoryImpl(
 
         return tm.use { db ->
             val col = db.getCollection<Channel>()
-            val channel = col.findOne(Channel::channelId eq channelId)
+            val channel = col.findOne(and(Channel::channelId eq channelId, Channel::deleted eq false))
                 ?: throw NotFoundException()
 
             redis.use { setV("channel:${channelId}", channel) }
@@ -78,8 +79,10 @@ class ChannelRepositoryImpl(
         val channelCol = db.getCollection<Channel>()
         val userCol = db.getCollection<User>()
 
-        userCol.findOne(User::userId eq update.owner)
+        userCol.findOne(User::nickname eq update.owner)
             ?: throw BadRequestException("The specified owner does not exist")
+
+        // TODO: add new owner to channel
 
         val old = channelCol.findOne(Channel::channelId eq update.channelId)
         channelCol.updateOne(update)
@@ -93,9 +96,12 @@ class ChannelRepositoryImpl(
         update
     }
 
-    override suspend fun deleteChannel(channel: Channel) = tm.use { db ->
-        val col = db.getCollection<Channel>()
-        col.deleteOne(Channel::channelId eq channel.channelId)
+    override suspend fun deleteChannel(channel: Channel) = tm.useTransaction { db ->
+        val channelCol = db.getCollection<Channel>()
+        val userChannelCol = db.getCollection<UserChannel>()
+
+        channelCol.updateOne(Channel::channelId eq channel.channelId, setValue(Channel::deleted, true))
+        userChannelCol.deleteMany(UserChannel::channel eq channel.channelId)
 
         redis.use {
             del("channel:${channel.channelId}")
@@ -164,7 +170,7 @@ class ChannelRepositoryImpl(
         userChannelCol.insertOne(UserChannel(channel.channelId, user.userId))
 
         redis.use {
-            setAdd("user_channels:$username", channel)
+            setAdd("user_channels:${user.userId}", channel)
             setAdd("channel_users:${channel.channelId}", user)
         }
 
@@ -186,7 +192,7 @@ class ChannelRepositoryImpl(
         ))
 
         redis.use {
-            setRemove("user_channels:$username", channel)
+            setRemove("user_channels:${user.userId}", channel)
             setRemove("channel_users:${channel.channelId}", user)
         }
 
@@ -204,7 +210,7 @@ class ChannelRepositoryImpl(
 
         return tm.use { db ->
             val col = db.getCollection<ChannelMessage>()
-            val messages = col.find(ChannelMessage::channelId eq channel.channelId)
+            val messages = col.find(and(ChannelMessage::channelId eq channel.channelId, ChannelMessage::deleted eq false))
                 .toList()
 
             redis.use {
@@ -227,7 +233,7 @@ class ChannelRepositoryImpl(
         if (message.media != null) {
             val cachedMedia = redis.use { getV<Media>("media:${message.media}") }
             if (cachedMedia == null) {
-                val media = mediaCol.findOne(Media::blobName eq message.media)
+                val media = mediaCol.findOne(Media::mediaId eq message.media)
                     ?: throw BadRequestException("Invalid message media blob")
 
                 redis.use { setV("media:${message.media}", media) }
@@ -264,7 +270,7 @@ class ChannelRepositoryImpl(
 
         return tm.use { db ->
             val col = db.getCollection<ChannelMessage>()
-            val message = col.findOne(ChannelMessage::messageId eq messageId)
+            val message = col.findOne(and(ChannelMessage::messageId eq messageId, ChannelMessage::deleted eq false))
                 ?: throw NotFoundException()
 
             redis.use { setV("message:${messageId}", message) }
@@ -274,13 +280,10 @@ class ChannelRepositoryImpl(
 
     override suspend fun deleteChannelMessage(channel: Channel, message: ChannelMessage) = tm.use { db ->
         val messagesCol = db.getCollection<ChannelMessage>()
-        val mediaCol = db.getCollection<Media>()
 
-        messagesCol.deleteOne(ChannelMessage::messageId eq message.messageId)
-        if (message.media != null) {
-            mediaCol.deleteOne(Media::blobName eq message.media)
+        messagesCol.updateOne(ChannelMessage::messageId eq message.messageId, setValue(ChannelMessage::deleted, true))
+        if (message.media != null)
             redis.use { del("media:${message.media}") }
-        }
 
         redis.use {
             del("message:${message.messageId}")

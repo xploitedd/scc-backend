@@ -20,26 +20,27 @@ class MediaRepositoryImpl(
 
     override suspend fun createMedia(blobInfo: BlobInfo) = tm.use { db ->
         val col = db.getCollection<Media>()
-        val newMedia = Media(blobInfo.contentType)
+        if (!bs.exists(blobInfo.hash))
+            bs.upload(blobInfo.hash, blobInfo)
 
-        bs.upload(newMedia.blobName, blobInfo)
-        col.insertOne(newMedia)
+        val media = Media(blobInfo.contentType, blobInfo.hash)
+        col.insertOne(media)
 
-        redis.use { setV("media:${newMedia.blobName}", newMedia) }
+        redis.use { setV("media:${media.mediaId}", media) }
 
-        newMedia
+        media
     }
 
-    override suspend fun getMedia(blobName: String): BlobInfo {
-        val media = redis.use { getV<Media>("media:${blobName}")?.blobName }
+    override suspend fun getMedia(mediaId: String): BlobInfo {
+        val media = redis.use { getV<Media>("media:${mediaId}")?.hash }
             ?: tm.use { db ->
                 val col = db.getCollection<Media>()
-                val media = col.findOne(Media::blobName eq blobName)
+                val media = col.findOne(Media::mediaId eq mediaId)
                     ?: throw NotFoundException()
 
-                redis.use { setV("media:${blobName}", media) }
+                redis.use { setV("media:${mediaId}", media) }
 
-                media.blobName
+                media.hash
             }
 
         return bs.download(media)

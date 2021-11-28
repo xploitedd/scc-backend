@@ -24,6 +24,7 @@ data class ChannelMessage(
     val createdAt: Long = Instant.now().toEpochMilli(),
     @SerialName("_id")
     val messageId: String = newId<ChannelMessage>().toString(),
+    val deleted: Boolean = false
 )
 
 @Serializable

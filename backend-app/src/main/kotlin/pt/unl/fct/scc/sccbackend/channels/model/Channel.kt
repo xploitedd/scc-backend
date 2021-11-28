@@ -13,9 +13,9 @@ data class ChannelCreateInput(
 
 @Serializable
 data class ChannelUpdateInput(
-    val name: String?,
-    val owner: String?,
-    val private: Boolean?,
+    val name: String? = null,
+    val owner: String? = null,
+    val private: Boolean? = null,
 )
 
 @Serializable
@@ -29,7 +29,8 @@ data class Channel(
     val owner: String,
     val private: Boolean,
     @SerialName("_id")
-    val channelId: String = newId<Channel>().toString()
+    val channelId: String = newId<Channel>().toString(),
+    val deleted: Boolean = false
 )
 
 @Serializable

@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.http.converter.json.KotlinSerializationJsonHttpMessageConverter
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
-import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
@@ -21,6 +20,9 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import pt.unl.fct.scc.sccbackend.common.accessControl.UserResolver
 import pt.unl.fct.scc.sccbackend.common.pagination.PaginationResolver
+import java.security.MessageDigest
+
+private const val DIGEST_ALG = "SHA-256"
 
 @Configuration
 @EnableWebMvc
@@ -39,6 +41,11 @@ class SccBackendConfiguration : WebMvcConfigurer {
 	@Bean
 	fun getPasswordEncoder(): PasswordEncoder {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder()
+	}
+
+	@Bean
+	fun getMessageDigester(): MessageDigest {
+		return MessageDigest.getInstance(DIGEST_ALG)
 	}
 
 	@Autowired

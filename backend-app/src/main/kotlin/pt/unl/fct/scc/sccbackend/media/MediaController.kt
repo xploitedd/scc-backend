@@ -11,6 +11,8 @@ import pt.unl.fct.scc.sccbackend.media.model.MediaDto
 import pt.unl.fct.scc.sccbackend.media.model.toMediaDto
 import pt.unl.fct.scc.sccbackend.media.repo.MediaRepository
 import pt.unl.fct.scc.sccbackend.users.model.User
+import java.security.MessageDigest
+import java.util.*
 import javax.servlet.http.HttpServletRequest
 
 private val ALLOWED_MEDIA_TYPES: Set<String> = setOf(
@@ -20,7 +22,7 @@ private val ALLOWED_MEDIA_TYPES: Set<String> = setOf(
 )
 
 @RestController
-class MediaController(val repo: MediaRepository) {
+class MediaController(val repo: MediaRepository, val digester: MessageDigest) {
 
     @PostMapping(MediaUri.MEDIAS)
     suspend fun uploadMedia(
@@ -34,10 +36,11 @@ class MediaController(val repo: MediaRepository) {
 
         val media = repo.createMedia(BlobInfo(
             data,
-            contentType
+            contentType,
+            Base64.getUrlEncoder().encodeToString(digester.digest(data))
         ))
 
-        return ResponseEntity.created(MediaUri.forMedia(media.blobName))
+        return ResponseEntity.created(MediaUri.forMedia(media.mediaId))
             .body(media.toMediaDto())
     }
 

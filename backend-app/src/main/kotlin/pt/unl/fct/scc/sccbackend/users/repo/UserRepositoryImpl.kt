@@ -14,6 +14,7 @@ import pt.unl.fct.scc.sccbackend.common.pagination.Pagination
 import pt.unl.fct.scc.sccbackend.media.model.Media
 import pt.unl.fct.scc.sccbackend.users.model.User
 import pt.unl.fct.scc.sccbackend.users.model.UserChannel
+import pt.unl.fct.scc.sccbackend.users.model.toDeletedUser
 
 @Repository
 class UserRepositoryImpl(
@@ -61,7 +62,7 @@ class UserRepositoryImpl(
         if (update.photo != null) {
             if (redis.use { getV<Media>("media:${update.photo}") } == null) {
                 val mediaCol = db.getCollection<Media>()
-                val media = mediaCol.findOne(Media::blobName eq update.photo)
+                val media = mediaCol.findOne(Media::mediaId eq update.photo)
                     ?: throw BadRequestException("The specified user photo does not exist")
 
                 redis.use { setV("media:${update.photo}", media) }
@@ -85,25 +86,28 @@ class UserRepositoryImpl(
         if (count != 0L)
             throw BadRequestException("The user cannot be deleted because it owns channels")
 
-        mediaCol.deleteOne(Media::blobName eq user.photo)
-        userCol.deleteOne(User::userId eq user.userId)
+        mediaCol.deleteOne(Media::mediaId eq user.photo)
+        userCol.updateOne(user.toDeletedUser())
 
+        // TODO: move to cleanup cloud function
         redis.use {
             del("user:${user.nickname}")
-            del("user_channels:${user.nickname}")
+            del("user_channels:${user.userId}")
             keys("channel_users:*").collect {
                 setRemove(it, user)
             }
 
             if (user.photo != null)
                 del("media:${user.photo}")
+
+            // TODO: specify that the user has been deleted in the user messages
         }
 
         Unit
     }
 
     override suspend fun getUserChannels(user: User, pagination: Pagination): Set<Channel> {
-        val channel = redis.use { setMembers<Channel>("user_channels:${user.nickname}") }
+        val channel = redis.use { setMembers<Channel>("user_channels:${user.userId}") }
         if (!channel.isNullOrEmpty()) {
             return channel.drop(pagination.offset)
                 .take(pagination.limit)
@@ -119,7 +123,7 @@ class UserRepositoryImpl(
                 .mapNotNull { channelCol.findOne(Channel::channelId eq it.channel) }
 
             if (result.isNotEmpty())
-                redis.use { setAdd("user_channels:${user.nickname}", *result.toTypedArray()) }
+                redis.use { setAdd("user_channels:${user.userId}", *result.toTypedArray()) }
 
             result.drop(pagination.offset)
                 .take(pagination.limit)

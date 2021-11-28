@@ -2,7 +2,8 @@ package pt.unl.fct.scc.sccbackend.common.storage
 
 data class BlobInfo(
     val data: ByteArray,
-    val contentType: String
+    val contentType: String,
+    val hash: String
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -10,14 +11,14 @@ data class BlobInfo(
 
         other as BlobInfo
 
-        if (!data.contentEquals(other.data)) return false
+        if (hash != other.hash) return false
         if (contentType != other.contentType) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = data.contentHashCode()
+        var result = hash.hashCode()
         result = 31 * result + contentType.hashCode()
         return result
     }

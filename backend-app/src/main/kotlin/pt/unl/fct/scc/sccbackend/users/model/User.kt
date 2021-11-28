@@ -26,7 +26,8 @@ data class User(
     val password: String,
     val photo: String? = null,
     @SerialName("_id")
-    val userId: String = newId<User>().toString()
+    val userId: String = newId<User>().toString(),
+    val deleted: Boolean = false
 )
 
 @Serializable
@@ -60,4 +61,13 @@ fun UserUpdateInput.toUser(user: User, encoder: PasswordEncoder) = User(
     } ?: user.password,
     photo ?: user.photo,
     user.userId
+)
+
+fun User.toDeletedUser() = User(
+    nickname,
+    name,
+    password,
+    photo,
+    userId,
+    true
 )

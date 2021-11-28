@@ -32,7 +32,13 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.0")
 
+	implementation("com.squareup.okhttp3:okhttp:4.9.0")
+
 	implementation("com.azure:azure-storage-blob:12.13.0")
+	implementation("com.azure:azure-core-http-okhttp:1.7.5")
+	implementation("com.azure:azure-identity:1.4.1")
+	implementation("com.azure.resourcemanager:azure-resourcemanager:2.9.0")
+	implementation("com.azure.resourcemanager:azure-resourcemanager-storage:2.9.0")
 
 	implementation("io.lettuce:lettuce-core:6.1.5.RELEASE")
 

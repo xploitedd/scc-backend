@@ -6,17 +6,20 @@ import org.litote.kmongo.newId
 
 @Serializable
 class Media(
-    val mediaType: String,
+    val contentType: String,
+    val hash: String,
     @SerialName("_id")
-    val blobName: String = newId<Media>().toString()
+    val mediaId: String = newId<Media>().toString()
 )
 
 class MediaDto(
-    val imageId: String,
-    val mediaType: String
+    val mediaId: String,
+    val contentType: String,
+    val hash: String
 )
 
 fun Media.toMediaDto() = MediaDto(
-    blobName,
-    mediaType
+    mediaId,
+    contentType,
+    hash
 )

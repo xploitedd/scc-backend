@@ -7,6 +7,6 @@ interface MediaRepository {
 
     suspend fun createMedia(blobInfo: BlobInfo): Media
 
-    suspend fun getMedia(blobName: String): BlobInfo
+    suspend fun getMedia(mediaId: String): BlobInfo
 
 }

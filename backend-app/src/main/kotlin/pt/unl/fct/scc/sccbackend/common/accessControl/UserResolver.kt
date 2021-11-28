@@ -67,7 +67,7 @@ class UserResolver(
         val user = repo.getUserByUsername(username)
             ?: throw UnauthorizedException()
 
-        if (!passwordEncoder.matches(password, user.password))
+        if (user.deleted || !passwordEncoder.matches(password, user.password))
             throw UnauthorizedException()
 
         return user
