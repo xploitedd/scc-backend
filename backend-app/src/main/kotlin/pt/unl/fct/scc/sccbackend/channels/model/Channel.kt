@@ -34,6 +34,12 @@ data class Channel(
 )
 
 @Serializable
+data class TrendingChannel(
+    val channelId: String,
+    val msgCount: Long
+)
+
+@Serializable
 data class ChannelReducedDto(
     val channelId: String,
     val name: String,

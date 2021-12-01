@@ -9,6 +9,8 @@ interface ChannelRepository {
 
     suspend fun getChannels(user: User?, pagination: Pagination): Set<Channel>
 
+    suspend fun getTrendingChannels(user: User?, pagination: Pagination): Set<Channel>
+
     suspend fun createChannel(channel: Channel): Channel
 
     suspend fun getChannel(channelId: String): Channel
@@ -26,6 +28,8 @@ interface ChannelRepository {
     suspend fun removeChannelMember(channel: Channel, username: String)
 
     suspend fun getChannelMessages(channel: Channel, pagination: Pagination): Set<ChannelMessage>
+
+    suspend fun searchChannelMessages(channel: Channel, query: String, pagination: Pagination): Set<ChannelMessage>
 
     suspend fun createChannelMessage(channel: Channel, message: ChannelMessage): ChannelMessage
 

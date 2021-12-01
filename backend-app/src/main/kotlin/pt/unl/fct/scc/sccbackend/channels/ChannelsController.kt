@@ -27,6 +27,17 @@ class ChannelsController(val repo: ChannelRepository) {
         return ResponseEntity.ok(channels)
     }
 
+    @GetMapping(ChannelUri.CHANNELS_TRENDING)
+    suspend fun getTrendingChannels(
+        user: User?,
+        pagination: Pagination
+    ): ResponseEntity<List<ChannelReducedDto>> {
+        val trending = repo.getTrendingChannels(user, pagination)
+            .map { it.toReducedDto() }
+
+        return ResponseEntity.ok(trending)
+    }
+
     @PostMapping(ChannelUri.CHANNELS)
     suspend fun createChannel(
         user: User,
@@ -142,6 +153,22 @@ class ChannelsController(val repo: ChannelRepository) {
         checkChannelReadAccess(user, channel)
 
         val messages = repo.getChannelMessages(channel, pagination)
+            .map { it.toReducedDto() }
+
+        return ResponseEntity.ok(messages)
+    }
+
+    @GetMapping(ChannelUri.CHANNEL_MESSAGES_SEARCH)
+    suspend fun searchChannelMessages(
+        user: User?,
+        pagination: Pagination,
+        @PathVariable channelId: String,
+        @RequestParam query: String
+    ): ResponseEntity<List<ChannelMessageReducedDto>> {
+        val channel = repo.getChannel(channelId)
+        checkChannelReadAccess(user, channel)
+
+        val messages = repo.searchChannelMessages(channel, query, pagination)
             .map { it.toReducedDto() }
 
         return ResponseEntity.ok(messages)

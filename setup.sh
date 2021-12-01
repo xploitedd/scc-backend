@@ -21,6 +21,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 RESOURCE_GROUP_PREFIX="scc62241"
+DOCKER_IMAGE_NAME="xploitedd/scc-backend"
 
 # ------------------------------------------------------------------------
 #       MONGODB CREATION
@@ -61,7 +62,7 @@ create_cosmosdb "${1}" "${mongodb_locations}"
 
 MASTER_RESOURCE_GROUP="${RESOURCE_GROUP_PREFIX}${1}"
 COSMOS_INSTANCE_NAME="db${MASTER_RESOURCE_GROUP}"
-COSMOS_PRIMARY_KEY=$(az cosmosdb keys list --name ${COSMOS_INSTANCE_NAME} --resource-group ${MASTER_RESOURCE_GROUP} --query primaryMasterKey | tr -d '"')
+COSMOS_PRIMARY_KEY=$(az cosmosdb keys list --name ${COSMOS_INSTANCE_NAME} --resource-group ${MASTER_RESOURCE_GROUP} --query primaryMasterKey | tr -d '"' | tr -d '\r')
 MONGO_CONNECTION_STR="mongodb://${COSMOS_INSTANCE_NAME}:${COSMOS_PRIMARY_KEY}@${COSMOS_INSTANCE_NAME}.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@${COSMOS_INSTANCE_NAME}@"
 MONGO_DB="scc"
 
@@ -193,7 +194,7 @@ deploy_backend_app() {
         --name "${webapp_name}" \
         --plan "${plan}" \
         --resource-group "${1}" \
-        --deployment-container-image-name nginx &> /dev/null
+        --deployment-container-image-name "${DOCKER_IMAGE_NAME}" &> /dev/null
 
     if [[ $? -ne 0 ]]; then
         echo "Error creating web app ${webapp_name}"
@@ -209,7 +210,7 @@ configure_env_variables() {
 
     redis_instance_name="r${1}"
     redis_host=$(az redis show --name ${redis_instance_name} --resource-group ${1} --query "join(':', [hostName, to_string(sslPort)])" | tr -d '"')
-    redis_primary_key=$(az redis list-keys --name ${redis_instance_name} --resource-group ${1} --query primaryKey | tr -d '"')
+    redis_primary_key=$(az redis list-keys --name ${redis_instance_name} --resource-group ${1} --query primaryKey | tr -d '"' | tr -d '\r')
     redis_connection_str="rediss://${redis_primary_key}@${redis_host}"
     storage_connection_str=$(az storage account show-connection-string --name ${1} --query connectionString | tr -d '"')
 
@@ -230,7 +231,8 @@ configure_env_variables() {
                    STORAGE_CONNECTION_STRING=${storage_connection_str} \
                    STORAGE_CONTAINER=${STORAGE_CONTAINER_NAME} \
                    REDIS_CONNECTION_STRING=${redis_connection_str} \
-                   RESOURCE_PREFIX=${RESOURCE_GROUP_PREFIX} &> /dev/null
+                   RESOURCE_PREFIX=${RESOURCE_GROUP_PREFIX} \
+                   WEBSITES_PORT=8080 &> /dev/null
 
     if [[ $? -ne 0 ]]; then
         echo 'Error creating environment variables for appservice'

@@ -39,6 +39,9 @@ const cleanupUsers: CleanupFunction = async (db: Db): Promise<void> => {
     deletedUsers.forEach(async user => {
         console.log(`User ${user.nickname} (${user._id}) is being deleted`)
 
+        if (user.photo)
+            await db.collection<Media>('media').deleteOne({ _id: user.photo })
+
         await db.collection<Message>('channelMessage').updateMany({ user: user.nickname, deleted: false }, { $set: { user: 'Deleted' } })
         await db.collection<UserChannel>('userChannel').deleteMany({ user: user._id })
         await db.collection<User>('user').deleteOne({ _id: user._id })

@@ -2,13 +2,19 @@ package pt.unl.fct.scc.sccbackend.channels.repo
 
 import io.lettuce.core.ScoredValue
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.toList
 import org.litote.kmongo.and
 import org.litote.kmongo.coroutine.updateOne
 import org.litote.kmongo.eq
 import org.litote.kmongo.setValue
+import org.litote.kmongo.text
+import org.litote.kmongo.sortByMetaTextScore
 import org.springframework.stereotype.Repository
 import pt.unl.fct.scc.sccbackend.channels.model.Channel
 import pt.unl.fct.scc.sccbackend.channels.model.ChannelMessage
+import pt.unl.fct.scc.sccbackend.channels.model.TrendingChannel
 import pt.unl.fct.scc.sccbackend.common.BadRequestException
 import pt.unl.fct.scc.sccbackend.common.NotFoundException
 import pt.unl.fct.scc.sccbackend.common.cache.*
@@ -25,12 +31,10 @@ class ChannelRepositoryImpl(
 ) : ChannelRepository {
 
     override suspend fun getChannels(user: User?, pagination: Pagination): Set<Channel> {
-        val cached = redis.use { setMembers<Channel>("channels") }
+        val cached = redis.fetch { setMembers<Channel>("channels") }
         if (!cached.isNullOrEmpty()) {
-            return cached.filter { !it.private || (user != null && isUserInChannel(it, user)) }
-                .drop(pagination.offset)
-                .take(pagination.limit)
-                .toSet()
+            return cached.toList()
+                .retrieve(user, pagination)
         }
 
         return tm.use { db ->
@@ -39,12 +43,33 @@ class ChannelRepositoryImpl(
                 .toList()
 
             if (channels.isNotEmpty())
-                redis.use { setAdd("channels", *channels.toTypedArray()) }
+                redis.run { setAdd("channels", *channels.toTypedArray()) }
 
-            channels.filter { !it.private || (user != null && isUserInChannel(it, user)) }
-                .drop(pagination.offset)
-                .take(pagination.limit)
-                .toSet()
+            channels.retrieve(user, pagination)
+        }
+    }
+
+    override suspend fun getTrendingChannels(user: User?, pagination: Pagination): Set<Channel> {
+        val cached = redis.fetch { setMembers<Channel>("trending_channels") }
+        if (!cached.isNullOrEmpty()) {
+            return cached.toList()
+                .retrieve(user, pagination)
+        }
+
+        return tm.use { db ->
+            val channelCol = db.getCollection<Channel>()
+            val trending = db.getCollection<TrendingChannel>()
+                .find()
+                .toFlow()
+                .mapNotNull {
+                    channelCol.findOne(Channel::channelId eq it.channelId)
+                }
+                .toList()
+
+            if (trending.isNotEmpty())
+                redis.run { setAdd("trending_channels", *trending.toTypedArray()) }
+
+            trending.retrieve(user, pagination)
         }
     }
 
@@ -52,7 +77,7 @@ class ChannelRepositoryImpl(
         val col = db.getCollection<Channel>()
         col.insertOne(channel)
 
-        redis.use {
+        redis.run {
             setV("channel:${channel.channelId}", channel)
             setAdd("channels", channel)
         }
@@ -61,7 +86,7 @@ class ChannelRepositoryImpl(
     }
 
     override suspend fun getChannel(channelId: String): Channel {
-        val cached = redis.use { getV<Channel>("channel:${channelId}") }
+        val cached = redis.fetch { getV<Channel>("channel:${channelId}") }
         if (cached != null)
             return cached
 
@@ -70,7 +95,7 @@ class ChannelRepositoryImpl(
             val channel = col.findOne(and(Channel::channelId eq channelId, Channel::deleted eq false))
                 ?: throw NotFoundException()
 
-            redis.use { setV("channel:${channelId}", channel) }
+            redis.run { setV("channel:${channelId}", channel) }
             channel
         }
     }
@@ -79,18 +104,30 @@ class ChannelRepositoryImpl(
         val channelCol = db.getCollection<Channel>()
         val userCol = db.getCollection<User>()
 
-        userCol.findOne(User::nickname eq update.owner)
+        val old = channelCol.findOne(Channel::channelId eq update.channelId)!!
+        val newOwner = userCol.findOne(User::nickname eq update.owner)
             ?: throw BadRequestException("The specified owner does not exist")
 
-        // TODO: add new owner to channel
+        val hasNewOwner = old.owner != update.owner
+        if (hasNewOwner) {
+            val userChannelCol = db.getCollection<UserChannel>()
+            userChannelCol.insertOne(UserChannel(update.channelId, newOwner.userId))
+        }
 
-        val old = channelCol.findOne(Channel::channelId eq update.channelId)
         channelCol.updateOne(update)
 
-        redis.use {
+        redis.run {
             setV("channel:${update.channelId}", update)
             setRemove("channels", old)
             setAdd("channels", update)
+
+            if (hasNewOwner)
+                setAdd("channel_users:${update.channelId}", newOwner)
+
+            keys("user_channels:*").collect {
+                setRemove(it, old)
+                setAdd(it, update)
+            }
         }
 
         update
@@ -103,10 +140,11 @@ class ChannelRepositoryImpl(
         channelCol.updateOne(Channel::channelId eq channel.channelId, setValue(Channel::deleted, true))
         userChannelCol.deleteMany(UserChannel::channel eq channel.channelId)
 
-        redis.use {
+        redis.run {
             del("channel:${channel.channelId}")
             del("channel_users:${channel.channelId}")
             setRemove("channels", channel)
+            setRemove("trending_channels", channel)
             keys("user_channels:*").collect {
                 setRemove(it, channel)
             }
@@ -116,7 +154,7 @@ class ChannelRepositoryImpl(
     }
 
     override suspend fun isUserInChannel(channel: Channel, user: User): Boolean {
-        val cache = redis.use { setMembers<User>("channel_users:${channel.channelId}") }
+        val cache = redis.fetch { setMembers<User>("channel_users:${channel.channelId}") }
         if (!cache.isNullOrEmpty())
             return cache.find { it.userId == user.userId } != null
 
@@ -128,7 +166,7 @@ class ChannelRepositoryImpl(
             ))
 
             if (res != null) {
-                redis.use { setAdd("channel_users:${channel.channelId}", user) }
+                redis.run { setAdd("channel_users:${channel.channelId}", user) }
                 true
             } else {
                 false
@@ -137,7 +175,7 @@ class ChannelRepositoryImpl(
     }
 
     override suspend fun getChannelMembers(channel: Channel, pagination: Pagination): Set<User> {
-        val cache = redis.use { setMembers<User>("channel_users:${channel.channelId}") }
+        val cache = redis.fetch { setMembers<User>("channel_users:${channel.channelId}") }
         if (!cache.isNullOrEmpty()) {
             return cache.drop(pagination.offset)
                 .take(pagination.limit)
@@ -153,7 +191,7 @@ class ChannelRepositoryImpl(
                 .mapNotNull { userCol.findOne(User::userId eq it.user) }
 
             if (results.isNotEmpty())
-                redis.use { setAdd("channel_users:${channel.channelId}", *results.toTypedArray()) }
+                redis.run { setAdd("channel_users:${channel.channelId}", *results.toTypedArray()) }
 
             results.drop(pagination.offset)
                 .take(pagination.limit)
@@ -169,7 +207,7 @@ class ChannelRepositoryImpl(
         val userChannelCol = db.getCollection<UserChannel>()
         userChannelCol.insertOne(UserChannel(channel.channelId, user.userId))
 
-        redis.use {
+        redis.run {
             setAdd("user_channels:${user.userId}", channel)
             setAdd("channel_users:${channel.channelId}", user)
         }
@@ -191,7 +229,7 @@ class ChannelRepositoryImpl(
             UserChannel::user eq user.userId
         ))
 
-        redis.use {
+        redis.run {
             setRemove("user_channels:${user.userId}", channel)
             setRemove("channel_users:${channel.channelId}", user)
         }
@@ -200,7 +238,7 @@ class ChannelRepositoryImpl(
     }
 
     override suspend fun getChannelMessages(channel: Channel, pagination: Pagination): Set<ChannelMessage> {
-        val cached = redis.use { zSetRange<ChannelMessage>("channel_messages:${channel.channelId}", 0, -1) }
+        val cached = redis.fetch { zSetRange<ChannelMessage>("channel_messages:${channel.channelId}", 0, -1) }
         if (!cached.isNullOrEmpty()) {
             return cached.reversed()
                 .drop(pagination.offset)
@@ -213,7 +251,7 @@ class ChannelRepositoryImpl(
             val messages = col.find(and(ChannelMessage::channelId eq channel.channelId, ChannelMessage::deleted eq false))
                 .toList()
 
-            redis.use {
+            redis.run {
                 val scoredMessages = messages.map {
                     ScoredValue.just(it.createdAt.toDouble(), it)
                 }
@@ -226,33 +264,43 @@ class ChannelRepositoryImpl(
         }
     }
 
+    override suspend fun searchChannelMessages(channel: Channel, query: String, pagination: Pagination) = tm.use { db ->
+        val col = db.getCollection<ChannelMessage>()
+        col.find(text(query))
+            .sort(ChannelMessage::text.sortByMetaTextScore())
+            .limit(pagination.limit)
+            .skip(pagination.offset)
+            .toList()
+            .toSet()
+    }
+
     override suspend fun createChannelMessage(channel: Channel, message: ChannelMessage) = tm.use { db ->
         val messagesCol = db.getCollection<ChannelMessage>()
         val mediaCol = db.getCollection<Media>()
 
         if (message.media != null) {
-            val cachedMedia = redis.use { getV<Media>("media:${message.media}") }
+            val cachedMedia = redis.fetch { getV<Media>("media:${message.media}") }
             if (cachedMedia == null) {
                 val media = mediaCol.findOne(Media::mediaId eq message.media)
                     ?: throw BadRequestException("Invalid message media blob")
 
-                redis.use { setV("media:${message.media}", media) }
+                redis.run { setV("media:${message.media}", media) }
             }
         }
 
         if (message.replyTo != null) {
-            val cachedReplyTo = redis.use { getV<ChannelMessage>("message:${message.replyTo}") }
+            val cachedReplyTo = redis.fetch { getV<ChannelMessage>("message:${message.replyTo}") }
             if (cachedReplyTo == null) {
                 val replyTo = messagesCol.findOne(ChannelMessage::messageId eq message.replyTo)
                     ?: throw BadRequestException("The message you're replying to does not exist")
 
-                redis.use { setV("message:${message.replyTo}", replyTo) }
+                redis.run { setV("message:${message.replyTo}", replyTo) }
             }
         }
 
         messagesCol.insertOne(message)
 
-        redis.use {
+        redis.run {
             setV("message:${message.messageId}", message)
             zSetAdd(
                 "channel_messages:${channel.channelId}",
@@ -264,7 +312,7 @@ class ChannelRepositoryImpl(
     }
 
     override suspend fun getChannelMessage(channel: Channel, messageId: String): ChannelMessage {
-        val cached = redis.use { getV<ChannelMessage>("message:${messageId}") }
+        val cached = redis.fetch { getV<ChannelMessage>("message:${messageId}") }
         if (cached != null)
             return cached
 
@@ -273,7 +321,7 @@ class ChannelRepositoryImpl(
             val message = col.findOne(and(ChannelMessage::messageId eq messageId, ChannelMessage::deleted eq false))
                 ?: throw NotFoundException()
 
-            redis.use { setV("message:${messageId}", message) }
+            redis.run { setV("message:${messageId}", message) }
             message
         }
     }
@@ -283,9 +331,9 @@ class ChannelRepositoryImpl(
 
         messagesCol.updateOne(ChannelMessage::messageId eq message.messageId, setValue(ChannelMessage::deleted, true))
         if (message.media != null)
-            redis.use { del("media:${message.media}") }
+            redis.run { del("media:${message.media}") }
 
-        redis.use {
+        redis.run {
             del("message:${message.messageId}")
             zSetRemove("channel_messages:${channel.channelId}", message)
         }
@@ -294,7 +342,7 @@ class ChannelRepositoryImpl(
     }
 
     private suspend fun findUser(username: String): User {
-        val cached = redis.use { getV<User>("user:$username") }
+        val cached = redis.fetch { getV<User>("user:$username") }
         if (cached != null)
             return cached
 
@@ -303,9 +351,16 @@ class ChannelRepositoryImpl(
             val user = userCol.findOne(User::nickname eq username)
                 ?: throw BadRequestException("The specified user does not exist")
 
-            redis.use { setV("user:$username", user) }
+            redis.run { setV("user:$username", user) }
             user
         }
+    }
+
+    private suspend fun List<Channel>.retrieve(user: User?, pagination: Pagination): Set<Channel> {
+        return filter { !it.private || (user != null && isUserInChannel(it, user)) }
+            .drop(pagination.offset)
+            .take(pagination.limit)
+            .toSet()
     }
 
 }

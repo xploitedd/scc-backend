@@ -15,7 +15,7 @@ class AccessControlRepoImpl(
 ) : AccessControlRepo {
 
     override suspend fun getUserByUsername(username: String): User? {
-        val cached = redis.use { getV<User>("user:$username") }
+        val cached = redis.fetch { getV<User>("user:$username") }
         if (cached != null)
             return cached
 
@@ -23,7 +23,7 @@ class AccessControlRepoImpl(
             val col = db.getCollection<User>()
             val user = col.findOne(User::nickname eq username)
             if (user != null)
-                redis.use { setV("user:$username", user) }
+                redis.run { setV("user:$username", user) }
 
             user
         }

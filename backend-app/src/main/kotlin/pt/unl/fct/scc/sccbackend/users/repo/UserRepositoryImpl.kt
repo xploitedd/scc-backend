@@ -23,7 +23,7 @@ class UserRepositoryImpl(
 ) : UserRepository {
 
     override suspend fun createUser(user: User): User {
-        if (redis.use { getV<User>("user:${user.nickname}") } != null)
+        if (redis.fetch { getV<User>("user:${user.nickname}") } != null)
             throw ConflictException("The user ${user.nickname} already exists")
 
         return tm.useTransaction { db ->
@@ -31,20 +31,20 @@ class UserRepositoryImpl(
 
             val existingUser = userCol.findOne(User::nickname eq user.nickname)
             if (existingUser != null) {
-                redis.use { setV("user:${user.nickname}", existingUser) }
+                redis.run { setV("user:${user.nickname}", existingUser) }
                 throw ConflictException("The user ${user.nickname} already exists")
             }
 
             userCol.insertOne(user)
 
-            redis.use { setV("user:${user.nickname}", user) }
+            redis.run { setV("user:${user.nickname}", user) }
 
             user
         }
     }
 
     override suspend fun getUser(username: String): User {
-        val cached = redis.use { getV<User>("user:$username") }
+        val cached = redis.fetch { getV<User>("user:$username") }
         if (cached != null)
             return cached
 
@@ -53,44 +53,41 @@ class UserRepositoryImpl(
             val user = col.findOne(User::nickname eq username)
                 ?: throw NotFoundException()
 
-            redis.use { setV("user:$username", user) }
+            redis.run { setV("user:$username", user) }
             user
         }
     }
 
     override suspend fun updateUser(update: User) = tm.useTransaction { db ->
         if (update.photo != null) {
-            if (redis.use { getV<Media>("media:${update.photo}") } == null) {
+            if (redis.fetch { getV<Media>("media:${update.photo}") } == null) {
                 val mediaCol = db.getCollection<Media>()
                 val media = mediaCol.findOne(Media::mediaId eq update.photo)
                     ?: throw BadRequestException("The specified user photo does not exist")
 
-                redis.use { setV("media:${update.photo}", media) }
+                redis.run { setV("media:${update.photo}", media) }
             }
         }
 
         val userCol = db.getCollection<User>()
         userCol.updateOne(update)
 
-        redis.use { setV("user:${update.nickname}", update) }
+        redis.run { setV("user:${update.nickname}", update) }
 
         update
     }
 
     override suspend fun deleteUser(user: User) = tm.useTransaction { db ->
         val userCol = db.getCollection<User>()
-        val mediaCol = db.getCollection<Media>()
         val channelCol = db.getCollection<Channel>()
 
         val count = channelCol.countDocuments(Channel::owner eq user.userId)
         if (count != 0L)
             throw BadRequestException("The user cannot be deleted because it owns channels")
 
-        mediaCol.deleteOne(Media::mediaId eq user.photo)
         userCol.updateOne(user.toDeletedUser())
 
-        // TODO: move to cleanup cloud function
-        redis.use {
+        redis.run {
             del("user:${user.nickname}")
             del("user_channels:${user.userId}")
             keys("channel_users:*").collect {
@@ -99,15 +96,13 @@ class UserRepositoryImpl(
 
             if (user.photo != null)
                 del("media:${user.photo}")
-
-            // TODO: specify that the user has been deleted in the user messages
         }
 
         Unit
     }
 
     override suspend fun getUserChannels(user: User, pagination: Pagination): Set<Channel> {
-        val channel = redis.use { setMembers<Channel>("user_channels:${user.userId}") }
+        val channel = redis.fetch { setMembers<Channel>("user_channels:${user.userId}") }
         if (!channel.isNullOrEmpty()) {
             return channel.drop(pagination.offset)
                 .take(pagination.limit)
@@ -123,7 +118,7 @@ class UserRepositoryImpl(
                 .mapNotNull { channelCol.findOne(Channel::channelId eq it.channel) }
 
             if (result.isNotEmpty())
-                redis.use { setAdd("user_channels:${user.userId}", *result.toTypedArray()) }
+                redis.run { setAdd("user_channels:${user.userId}", *result.toTypedArray()) }
 
             result.drop(pagination.offset)
                 .take(pagination.limit)

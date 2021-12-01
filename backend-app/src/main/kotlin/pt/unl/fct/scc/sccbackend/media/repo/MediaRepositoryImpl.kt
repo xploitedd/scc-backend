@@ -26,19 +26,19 @@ class MediaRepositoryImpl(
         val media = Media(blobInfo.contentType, blobInfo.hash)
         col.insertOne(media)
 
-        redis.use { setV("media:${media.mediaId}", media) }
+        redis.run { setV("media:${media.mediaId}", media) }
 
         media
     }
 
     override suspend fun getMedia(mediaId: String): BlobInfo {
-        val media = redis.use { getV<Media>("media:${mediaId}")?.hash }
+        val media = redis.fetch { getV<Media>("media:${mediaId}")?.hash }
             ?: tm.use { db ->
                 val col = db.getCollection<Media>()
                 val media = col.findOne(Media::mediaId eq mediaId)
                     ?: throw NotFoundException()
 
-                redis.use { setV("media:${mediaId}", media) }
+                redis.run { setV("media:${mediaId}", media) }
 
                 media.hash
             }

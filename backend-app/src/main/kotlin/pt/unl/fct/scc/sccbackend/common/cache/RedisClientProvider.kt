@@ -3,6 +3,7 @@ package pt.unl.fct.scc.sccbackend.common.cache
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.coroutines
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
+import kotlinx.coroutines.*
 import org.springframework.stereotype.Service
 
 private const val ENV_REDIS_CONNECTION_STRING = "REDIS_CONNECTION_STRING"
@@ -23,7 +24,14 @@ class RedisClientProvider {
         }
     }
 
-    suspend fun <T> use(commands: suspend RedisCoroutinesCommands<String, String>.() -> T): T? =
+    suspend fun <T> fetch(commands: suspend RedisCoroutinesCommands<String, String>.() -> T?): T? =
         redis?.let { commands(it) }
+
+    suspend fun <T> run(commands: suspend RedisCoroutinesCommands<String, String>.() -> T?): Job =
+        redis?.let { rd ->
+            coroutineScope {
+                launch { commands(rd) }
+            }
+        } ?: CompletableDeferred(value = null)
 
 }
