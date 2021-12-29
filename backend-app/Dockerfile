@@ -1,6 +1,3 @@
-# THIS DOCKERFILE IS NOT IDEAL!
-# 1. We are not using a layered build, which means it'll be slower
-
 FROM eclipse-temurin:11-alpine AS builder
 
 COPY . /app
