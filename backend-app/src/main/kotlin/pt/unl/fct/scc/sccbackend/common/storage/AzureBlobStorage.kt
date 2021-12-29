@@ -13,7 +13,6 @@ import pt.unl.fct.scc.sccbackend.common.storage.provider.AzureStorageProvider
 import java.security.MessageDigest
 import java.util.*
 
-@Service
 class AzureBlobStorage(
     val storageProvider: AzureStorageProvider,
     val digester: MessageDigest

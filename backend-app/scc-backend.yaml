@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scc-mongo
+spec:
+  selector:
+    matchLabels:
+      app: scc-mongo
+  template:
+    metadata:
+      labels:
+        app: scc-mongo
+    spec:
+      containers:
+      - name: scc-mongo
+        image: mongo
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "400m"
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            value: scc
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            value: scc
+        ports:
+        - containerPort: 27017
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scc-redis
+spec:
+  selector:
+    matchLabels:
+      app: scc-redis
+  template:
+    metadata:
+      labels:
+        app: scc-redis
+    spec:
+      containers:
+      - name: scc-redis
+        image: redis
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        ports:
+        - containerPort: 6379
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: scc-mongo
+spec:
+  selector:
+    app: scc-mongo
+  ports:
+  - port: 27017
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: scc-redis
+spec:
+  selector:
+    app: scc-redis
+  ports:
+  - port: 6379
+
+---
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: scc-backend-storage
+provisioner: kubernetes.io/azure-disk
+reclaimPolicy: Retain
+parameters:
+  storageaccounttype: Standard_LRS
+  kind: Managed
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scc-backend-volume
+spec:
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: scc-backend-storage
+  accessModes:
+    - ReadWriteOnce
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-app
+spec:
+  selector:
+    matchLabels:
+      app: backend-app
+  template:
+    metadata:
+      labels:
+        app: backend-app
+    spec:
+      containers:
+      - name: backend-app
+        image: xploitedd/scc-backend
+        volumeMounts:
+          - mountPath: "/app/blobs"
+            name: volume
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        env:
+          - name: DB_CONNECTION_STRING
+            value: mongodb://scc:scc@scc-mongo
+          - name: DB_NAME
+            value: scc
+          - name: REDIS_CONNECTION_STRING
+            value: redis://scc-redis
+        ports:
+        - containerPort: 8080
+      volumes:
+        - name: volume
+          persistentVolumeClaim:
+            claimName: scc-backend-volume
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: backend-app
+  ports:
+  - port: 80
+    targetPort: 8080
+
+        

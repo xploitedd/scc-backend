@@ -83,7 +83,7 @@ create_app_service_plan() {
         --name "${1}" \
         --resource-group "${2}" \
         --is-linux \
-        --sku B1 &> /dev/null
+        --sku P2V2 &> /dev/null
 
     if [[ $? -ne 0 ]]; then
         echo "Error creating app service plan ${1}"
